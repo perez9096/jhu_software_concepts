@@ -1,0 +1,12 @@
+{% extends 'base.html' %}
+
+{% block header %}
+	<h2>{% block title %}Your Home!{% endblock title %}</h2>
+{% endblock header %}
+
+{% block content %}
+	<p>
+		Learn more by visiting the <a href="{{ url_for('pages.about') }}">About page</a>.
+	</p>
+	<img src= "{{url_for('static', filename='IMG_8664.jpeg')}}"align="middle"style="width:100px;height:100px;"/>
+{% endblock content %}
