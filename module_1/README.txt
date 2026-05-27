@@ -64,3 +64,33 @@ HOW TO RUN THE WEBSITE
     $ source venv/bin/Activate
 3. Ensure Flask is installed, if not please input the follow:
     (venv) $ python -m pip install Flask
+4. cd into the module_1 folder and run the following:
+    $ python run_me.py
+5. This will allow you to open in the browser or whatever you chose to display the static website.
+
+-------------------------
+FILES
+-------------------------
+module_1/
+|
+|__ README.txt
+|__ requirements.txt
+|__run_me.py
+|__board/
+    |__ __init__.py
+    |__ pages.py
+    |__ static/
+        |__ homepage_profile_pic.jpeg
+        |__ projectspage_pic.jpeg
+        |__ contactinfopage_pic.jpeg
+    |__ templates/
+        |__ pages/
+            |__ contactinfo.HTML
+            |__ homepage.HTML
+            |__ projectspage.HTML
+        |__ _navigation.HTML
+        |__ base.HTML
+
+
+
+
