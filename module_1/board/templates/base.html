@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Raul Perez - {% block title %}{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <h1 class="top-bar">
+        <div class="logo">Pages</div>
+    </h1>
+    {% include("_navigation.html") %}
+    <section>
+        <head>
+        {% block header %}
+        {% endblock %}
+        </head>
+        <main>
+            {% block content %}
+            <p>No messages.</p>
+            {% endblock %}
+        </main>
+    </section>
+</body>
+</html>

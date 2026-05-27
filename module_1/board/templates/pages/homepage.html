@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+
+{% block header %}
+    <h2 class="Name">
+        {% block title %}
+        <div class="logo">Raul Perez</div>
+        {% endblock %}
+    </h2>
+{% endblock header %}
+
+{% block content %}
+<section class="split">
+<div class="left">
+    <p>
+        <strong>Operations Test & Verification Engineer</strong><br><br>
+    <strong><u>About Me:</u></strong> Texas native who took every opportunity no matter where it led.
+    Houston, TX >> Lubbock, TX >> Japan >> Alberquerque, NM >> Las Vegas, NV. I have a B.S. in Physics and a M.S. in Electrical Engineering from Texas Tech University. 
+    Along the way I have had the opportunity to work on multiple projects in the fields of Pulsed Power and Directed Energy, 
+    which ultimately led me to my current position with JT4 in Las Vegas, NV. <br><br>
+
+    </p>
+</div>
+<div class="right">
+    <img src= "{{url_for('static', filename='homepage_profile_pic.jpeg')}}"alt="Cats"/>
+</div>
+</section>
+
+{% endblock content %}

@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+
+{% block header %}
+    <h2 class="ContactInfoName">
+        {% block title %}
+        <div class="logoCInfo">Connect With Me!</div>
+        {% endblock %}
+    </h2>
+{% endblock header %}
+
+{% block content %}
+<section class="splitCInfo">
+<div class="leftCInfo">
+    <p>
+    <strong><u>My Linkedin:</u></strong>
+    <a href="https://www.linkedin.com/in/raulperezjr25/" target="_blank">Raul Perez</a>
+    <br><br>
+    <strong><u>My Personal Email:</u></strong> raul.perez5025@gmail.com<br><br>
+    <strong><u>My JHU Email:</u></strong> rperez30@jh.edu
+    </p>
+</div>
+<div class="rightCInfo">
+    <img src= "{{url_for('static', filename='contactinfopage_pic.jpeg')}}"alt="Cats"/>
+</div>
+</section>
+{% endblock content %}

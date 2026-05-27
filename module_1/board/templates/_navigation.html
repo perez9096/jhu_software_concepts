@@ -1,0 +1,10 @@
+<nav>
+    <ul>
+        <li><a href="{{ url_for('pages.homepage') }}"
+            class="{% if request.path == url_for('pages.homepage') %}active{% endif %}">Home Page</a></li>
+        <li><a href="{{ url_for('pages.contactinfo') }}" 
+            class="{% if request.path == url_for('pages.contactinfo') %}active{% endif %}">Contact Info</a></li>
+        <li><a href="{{ url_for('pages.projectspage') }}" 
+            class="{% if request.path == url_for('pages.projectspage') %}active{% endif %}">Projects and Publications</a></li>
+    </ul>
+</nav>

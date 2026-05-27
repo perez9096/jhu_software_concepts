@@ -1,0 +1,164 @@
+* {
+    box-sizing: border-box;
+}
+/* Adjusting style for top bar that has Pages in it*/
+.top-bar {
+    width: 100%;
+    background-color: #07285d;
+    color: #e5dcdc;
+    padding: 10px 0;
+    padding-right: 150px;
+    text-align: right;
+    top: 0;
+    border-bottom: 2px solid #bdb5bf;
+    box-shadow: none;
+}
+
+/*Adjusting spacing at top for top-bar and list of links*/
+h1 {
+    margin: 0;
+    padding: 1px;
+}
+
+/* adjust style for body, wording, background color, font size*/
+body {
+    font-family: Arial, sans-serif;
+    font-size: 20px;
+    color: #e5dcdc;
+    margin: 0;
+    padding: 0;
+    background-color: #272424;
+    text-align: Center;
+    top: 0;
+}
+
+/*Adjusting homepage items*/
+.Name {
+    font-size: 60px;
+    color: #e5dcdc;
+    margin: 0;
+    padding: 10px 0;
+}
+.split {
+    display: flex;
+    gap: 1px;
+    padding: 10px 10px;
+    align-items: center;
+}
+.left {
+    flex: 1;
+    margin-right: 0;
+    padding-right: 0;
+}
+.right {
+    flex: 1;
+    margin-left: 0;
+    padding-left: 0;
+}
+.right img {
+    width: 30%;
+    height: auto;
+    border-radius: 10px;
+}
+
+/*Adjusting contact info page items*/
+.ContactInfoName {
+    font-size: 60px;
+    color: #e5dcdc;
+    margin: 0;
+    padding: 10px 0;
+}
+.splitCInfo {
+    display: flex;
+    gap: 1px;
+    padding: 10px 10px;
+    align-items: center;
+}
+.leftCInfo {
+    flex: 1;
+    margin-right: 0;
+    padding-right: 0;
+}
+.rightCInfo {
+    flex: 1;
+    margin-left: 0;
+    padding-left: 0;
+}
+.rightCInfo img {
+    width: 30%;
+    height: auto;
+    border-radius: 10px;
+}
+
+/*Adjusting projects and publications page items*/
+.splitPPJ {
+    display: flex;
+    gap: 1px;
+    padding: 10px 10px;
+    align-items: center;
+}
+.leftPPJ {
+    flex: 1;
+    margin-right: 0;
+    padding-right: 0;
+}
+.rightPPJ {
+    flex: 1;
+    margin-left: 0;
+    padding-left: 0;
+}
+.rightPPJ img {
+    width: 30%;
+    height: auto;
+    border-radius: 10px;
+}
+
+/*Adjusting navigation styles and link words*/
+nav a {
+    color: #bdb5bf;
+    text-decoration: none;
+}
+
+nav a:active {
+    color: #b114dc;
+    text-decoration: none;
+}
+
+nav a:hover {
+    color: #4949c4;
+    text-decoration: underline;
+}
+
+nav ul {
+    list-style-type: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    gap: 2px; /* adjust spacing here */
+    top: 0;
+    justify-content: flex-end;
+    flex-direction: column;
+    align-items: flex-end;
+}
+
+nav ul li {
+    width: 30%;
+    background-color: #07285d;
+    font-size: 15px;
+    border-right: 2px solid #bdb5bf;
+    border-left: 2px solid #bdb5bf;
+    border-bottom: 2px solid #bdb5bf;
+    margin: 2px;
+    padding: 0;
+    list-style: none;
+
+}
+
+/*handles items in the main if something was there.*/
+main {
+    width: 80%;
+    margin: 0 auto;
+    padding: 0;
+    align-items: center;
+    justify-content: space-between;
+}

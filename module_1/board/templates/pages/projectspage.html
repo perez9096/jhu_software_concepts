@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+
+{% block header %}
+    <h2 class="NamePPJ">
+        {% block title %}
+        <div class="logoPPJ">My Projects and Publications</div>
+        {% endblock %}
+    </h2>
+
+{% endblock header %}
+
+{% block content %}
+<section class="splitPPJ">
+<div class="leftPPJ">
+    <p>
+    <strong><u>Texas Tech:</u></strong><br><br>
+    JURP Article:<a href="https://www.researchgate.net/publication/344275009_High_Resolution_Muon_Tomography_Using_a_Prototype_Portable_Muon_Telescope" target="_blank">High Resolution Muon Tomography Using a Prototype Portable Muon Telescope</a>
+    <br><br>
+    Poster:<a href="https://www.researchgate.net/publication/341452040_High_Resolution_Muon_Tomography_using_a_Portable_Prototype_Muon_Telescope" target="_blank">High Resolution Muon Tomography Using a Portable Prototype Muon Telescope</a>
+    <br><br>
+    Master's Thesis:<a href="https://hdl.handle.net/2346/96301" target="_blank">Simulation Studies of Frequency-Dependent Action Potentials in Cell Axons</a>
+    <br><br>
+    <strong><u>JHU Modern Software Concepts in Python:</u></strong><br><br>
+    Module 1:
+    </p>
+</div>
+<div class="rightPPJ">
+    <img src= "{{url_for('static', filename='projectspage_pic.jpeg')}}"alt="Cats"/>
+</div>
+</section>
+
+{% endblock content %}
