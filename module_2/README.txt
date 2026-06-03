@@ -4,9 +4,9 @@ Module 2: Web Scraping
 Created by Raul Perez
 Due Date: May 31, 2026
 
---------------------------
-PROJECT DESCRIPTION
---------------------------
+---------------------------------
+PROJECT DESCRIPTION AND APPROACH
+---------------------------------
 
 This project collects graduate admissions data from https://www.thegradcafe.com and stores the information as structured JSON data for later analysis.
 The scraper.py checks for and ensures we follow the website's robots.txt rules before collecting any information and only accesses publicly available admissions results pages.
@@ -90,30 +90,95 @@ The collected data is intended for use in later modules where the records will b
             Python re module
             BeautifulSoup text extraction
 
+    - Raw Data Preservation
+        For reproducibility and traceability, each record contains a raw_text field.
+        This field stores the original extracted text used to generate the structured record.
+        No original applicant information is removed.
+    
+    - Handling Missing Data
+        Many Grad Cafe entries do not contain every possible field.
+        When information is unavailable, the scraper stores:
+            None
+        This ensures consistent JSON structure across all records.
+
+    - JSON Storage
+        After scraping is complete, all records are stored in:
+            applicant_data.json
+        The file is written using Python's JSON library with UTF-8 encoding and formatted indentation.
+        Implementation:
+            save_data()
+
+    - Data Loading
+        Previously saved data can be reloaded through:
+            load_data()
+        This allows future cleaning and analysis steps without re-scraping the website.
+
+    - Blocking and Rate-Limit Detection
+        The scraper attempts to detect:
+            Cloudflare protection pages
+            request failures
+            connection interruptions
+        If a block is detected, the scraper pauses and retries once. If the block persists, scraping stops.
+        This behavior ensures compliance with the assignment requirement to stop scraping when blocked or rate-limited.
 
 -------------------------
 FILES
 -------------------------
-module_1/
+Main scraping program.
+Functions:
+    check_robots()
+    fetch()
+    parse_triplet()
+    scrape_data()
+    save_data()
+    load_data()
+    applicant_data.json
+        Generated admissions data.
+    requirements.txt
+        Python dependencies required to recreate the environment.
+    screenshot.jpg
+        Screenshot showing robots.txt verification.
+
+module_2/
 |
 |__ README.txt
 |__ requirements.txt
-|__run_me.py
-|__board/
-    |__ __init__.py
-    |__ pages.py
-    |__ static/
-        |__ homepage_profile_pic.jpeg
-        |__ projectspage_pic.jpeg
-        |__ contactinfopage_pic.jpeg
-    |__ templates/
-        |__ pages/
-            |__ contactinfo.HTML
-            |__ homepage.HTML
-            |__ projectspage.HTML
-        |__ _navigation.HTML
-        |__ base.HTML
+|__scraper.py
+|__llm_hosting/
+    |__ README.md
+    |__ app.py
+    |__ canon_programs.txt
+    |__ canon_universities.txt
 
+--------------------
+REQUIREMENTS
+--------------------
+Python Version:
+Python 3.10+
+Packages:
+beautifulsoup4
+Standard Library Modules:
+    urllib
+    json
+    re
+    time
+    os
+
+----------------
+KNOWN BUGS
+----------------
+Program and University Separation
+    This version uses simple string splitting to identify the university and program fields. Some issues were seen early on.
+    Because university names and program names vary significantly in length, some entries may not be separated perfectly.
+Example:
+"University of California Berkeley Computer Science"
+may not always split correctly into:
+    University
+    Program
+Run-time errors
+    Experienced issues with reaching 30000 data entries.
+
+In the next phase of the project, the provided local language model will be used to standardize and clean university and program names using canonical institution lists and fuzzy matching.
 
 
 
