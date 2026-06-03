@@ -11,7 +11,7 @@ parser.read()
 paths = [
     "/",
     "https://www.thegradcafe.com/results/",
-    "https://www.thegradcafe.com/results/935453"
+    "https://www.thegradcafe.com/survey/"
 ]
 
 for path in paths:

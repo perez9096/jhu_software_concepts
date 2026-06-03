@@ -1,37 +1,61 @@
-from urllib.request import Request, urlopen
+from urllib.request import Request
 from urllib import robotparser
 from urllib.parse import urljoin
 from bs4 import BeautifulSoup
+from selenium import webdriver
 import json
+import time
 
-base = "https://www.thegradcafe.com/"
+class GradCafeScraper:
 
-# robots.txt check
-parser = robotparser.RobotFileParser()
-parser.set_url(urljoin(base, "robots.txt"))
-parser.read()
+    def __init__(self):
+        self.base = "https://www.thegradcafe.com/"
+        self.data = []
 
-if not parser.can_fetch("RP", "/results/"):
-    raise Exception("robots.txt disallows scraping /results/")
+        # robots.txt check
+        rp = robotparser.RobotFileParser()
+        rp.set_url(urljoin(self.base, "robots.txt"))
+        rp.read()
 
-# request page
-url = "https://www.thegradcafe.com/"
+        if not rp.can_fetch("RP", "/results/"):
+            raise Exception("Blocked by robots.txt")
 
-req = Request(url, headers={"User-Agent": "RP"})
+        # Selenium setup
+        self.driver = webdriver.Chrome()
 
-with urlopen(req) as response:
-    html = response.read().decode("utf-8")
+    def scrape_data(self, pages=5):
+        for page in range(1, pages + 1):
+            url = f"https://www.thegradcafe.com/results/?page={page}"
 
-# (optional) parse
-soup = BeautifulSoup(html, "html.parser")
+            self.driver.get(url)
+            time.sleep(3)  # allowed: wait for rendering
 
-# save RAW HTML (best for LLM pipeline)
-data = {
-    "url": url,
-    "html": html
-}
+            html = self.driver.page_source
+            soup = BeautifulSoup(html, "html.parser")
 
-with open("applicant_data.json", "w") as f:
-    json.dump(data, f, indent=2)
+            self._parse_page(soup)
 
-print("Saved raw HTML to applicant_data.json")
+    def _parse_page(self, soup):
+        rows = soup.find_all("div")
+
+        for r in rows:
+            text = r.get_text(" ", strip=True)
+
+            if any(x in text for x in ["Accepted", "Rejected", "Waitlisted"]):
+                self.data.append({
+                    "raw_text": text
+                })
+
+    def save_data(self, filename="applicant_data.json"):
+        with open(filename, "w") as f:
+            json.dump(self.data, f, indent=2)
+
+    def load_data(self, filename):
+        with open(filename, "r") as f:
+            return json.load(f)
+
+
+if __name__ == "__main__":
+    scraper = GradCafeScraper()
+    scraper.scrape_data(pages=10)  # scale this to 30k later
+    scraper.save_data()
