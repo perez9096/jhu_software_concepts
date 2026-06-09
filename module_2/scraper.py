@@ -53,66 +53,235 @@ def fetch(url, retries=3):
 # -----------------------------
 # PARSE ROW TRIPLE
 # -----------------------------
-def parse_triplet(summary, metadata, comments):
+def parse_row(row):
+    cells = row.find_all("td")
+    text = row.get_text(" ", strip=True)
+    raw_text = text
+    if len(cells) < 4:
+        return None
 
-    summary_text = summary.get_text(" ", strip=True)
-    metadata_text = metadata.get_text(" ", strip=True)
-    comments_text = comments.get_text(" ", strip=True)
+    # --------------------
+    # SCHOOL
+    # --------------------
+    university = cells[0].get_text(" ", strip=True)
 
-    # ---- university + program extraction
-    parts = summary_text.split()
+    # --------------------
+    # PROGRAM + DEGREE
+    # --------------------
+    program_degree = cells[1].get_text(" ", strip=True)
+    parts = program_degree.split()
+    if len(parts) == 2:
+        program_name = parts[0].strip()
+        degree = parts[1].strip()
+    else:
+        program_name = program_degree
+        degree = None
 
-    university = " ".join(parts[:-3]) if len(parts) > 3 else None
-    program_name = parts[-3] if len(parts) >= 3 else None
-    degree = parts[-2] if len(parts) >= 2 else None
+    # --------------------
+    # DATE ADDED
+    # --------------------
+    date_added = cells[2].get_text(" ", strip=True)
 
-    # ---- status
+    # semester_year will be extracted from combined text below (after detail page fetch)
+    semester_year = None
+
+    # --------------------
+    # STATUS + GRE + GPA + ETC
+    # --------------------
+    status_block = cells[3].get_text(" ", strip=True)
+
     status = None
-    if "Accepted" in summary_text:
+    if "Accepted" in status_block:
         status = "Accepted"
-    elif "Rejected" in summary_text:
+    elif "Rejected" in status_block:
         status = "Rejected"
-    elif "Wait" in summary_text:
+    elif "Wait" in status_block:
         status = "Waitlisted"
 
-    # ---- metadata extraction
-    gpa = re.search(r"GPA\s+([0-9.]+)", metadata_text)
-    gpa = gpa.group(1) if gpa else None
+    # --------------------
+    # URL
+    # --------------------
+    link = row.find("a", href=True)
+    url = BASE_URL + link["href"] if link else None
 
-    gre_v = re.search(r"GRE V\s+(\d+)", metadata_text)
-    gre_v = gre_v.group(1) if gre_v else None
+    # Try to fetch the detail page for this result (many fields like GPA appear there)
+    detail_text = ""
+    if url:
+        detail_html = fetch(url)
+        if detail_html:
+            try:
+                detail_soup = BeautifulSoup(detail_html, "html.parser")
+                detail_text = detail_soup.get_text(" ", strip=True)
+            except Exception:
+                detail_text = detail_html
 
-    gre_aw = re.search(r"GRE AW\s+([0-9.]+)", metadata_text)
-    gre_aw = gre_aw.group(1) if gre_aw else None
+            # Attempt structured extraction from the detail page (preferred)
+            try:
+                # Undergrad GPA
+                if detail_soup:
+                    dt = detail_soup.find(lambda t: t.name == 'dt' and 'Undergrad GPA' in t.get_text())
+                    if dt:
+                        dd = dt.find_next_sibling('dd')
+                        if dd:
+                            ddval = dd.get_text(" ", strip=True)
+                            if ddval and 'Not provided' not in ddval:
+                                m = re.search(r'([0-9]+(?:\.[0-9]+)?)', ddval)
+                                if m:
+                                    try:
+                                        gpa = float(m.group(1))
+                                    except Exception:
+                                        gpa = m.group(1)
 
-    semester = re.search(r"(Fall|Spring)\s+\d{4}", metadata_text)
-    semester = semester.group(0) if semester else None
+                    # GRE Verbal
+                    dtv = detail_soup.find(lambda t: t.name == 'dt' and 'GRE Verbal' in t.get_text())
+                    if dtv:
+                        ddv = dtv.find_next_sibling('dd')
+                        if ddv:
+                            v = re.search(r'(\d{2,3})', ddv.get_text(" ", strip=True))
+                            if v:
+                                gre_v = v.group(1)
 
+                    # Analytical Writing
+                    dta = detail_soup.find(lambda t: t.name == 'dt' and ('Analytical Writing' in t.get_text() or 'Writing' in t.get_text()))
+                    if dta:
+                        dda = dta.find_next_sibling('dd')
+                        if dda:
+                            aw = re.search(r'([0-9]+(?:\.[0-9]+)?)', dda.get_text(" ", strip=True))
+                            if aw:
+                                gre_aw = aw.group(1)
+            except Exception:
+                pass
+
+    # Combine row text and detail page text for more reliable extraction
+    search_text = f"{text} {detail_text}" if detail_text else text
+
+    # --------------------
+    # SEMESTER YEAR (extract after we have detail page)
+    # --------------------
+    semester_match = re.search(r"\b(Fall|Spring|Summer|Winter)\s+\d{4}\b", search_text, re.IGNORECASE)
+    if semester_match:
+        semester_year = semester_match.group(0)
+
+    # --------------------
+    # GRE / GPA extraction (more robust)
+    # --------------------
+    gpa = None
+    # Look for explicit 'GPA' labels first (handles 'GPA: 3.85', 'GPA 3.85/4.00', etc.)
+    gpa_match = re.search(r"GPA[:\s]*([0-9]+(?:\.[0-9]+)?)(?:\s*/\s*[0-9]+(?:\.[0-9]+)?)?", search_text, re.IGNORECASE)
+    if gpa_match:
+        try:
+            gpa = float(gpa_match.group(1))
+        except Exception:
+            gpa = gpa_match.group(1)
+
+    # If no explicit GPA label, try to capture common ratio formats like '3.85/4.0'
+    if gpa is None:
+        ratio_match = re.search(r"\b([0-9]+(?:\.[0-9]+)?)\s*/\s*4(?:\.0+)?\b", search_text)
+        if ratio_match:
+            try:
+                gpa = float(ratio_match.group(1))
+            except Exception:
+                gpa = ratio_match.group(1)
+
+    # GRE Verbal (handles variants like 'GRE V: 159', 'GRE Verbal 159')
+    gre_v = None
+    gre_v_match = re.search(r"GRE\s*V[:\s]*?(\d{2,3})", search_text, re.IGNORECASE)
+    if gre_v_match:
+        gre_v = gre_v_match.group(1)
+
+    # Try alternative label 'GRE Verbal'
+    if gre_v is None:
+        gre_v_match2 = re.search(r"GRE\s*(?:Verbal)[:\s]*?(\d{2,3})", search_text, re.IGNORECASE)
+        if gre_v_match2:
+            gre_v = gre_v_match2.group(1)
+
+    # try generic 'V:' pattern (e.g., 'V: 160')
+    if gre_v is None:
+        v_generic = re.search(r"\bV[:\s]*(\d{2,3})\b", search_text)
+        if v_generic:
+            gre_v = v_generic.group(1)
+
+    # GRE Analytical Writing (handles 'GRE AW: 4.0' and 'Analytical Writing')
+    gre_aw = None
+    gre_aw_match = re.search(r"GRE\s*AW[:\s]*?([0-9]+(?:\.[0-9]+)?)", search_text, re.IGNORECASE)
+    if gre_aw_match:
+        gre_aw = gre_aw_match.group(1)
+
+    if gre_aw is None:
+        aw_match2 = re.search(r"Analytical Writing[:\s]*([0-9]+(?:\.[0-9]+)?)", search_text, re.IGNORECASE)
+        if aw_match2:
+            gre_aw = aw_match2.group(1)
+
+    # also accept 'AW: 4.0' shorthand
+    if gre_aw is None:
+        aw_generic = re.search(r"\bAW[:\s]*([0-9]+(?:\.[0-9]+)?)\b", search_text)
+        if aw_generic:
+            gre_aw = aw_generic.group(1)
+
+    # capture GRE Quant and Verbal components if present
+    gre_q = None
+    q_match = re.search(r"\bQ[:\s]*(\d{2,3})\b", search_text)
+    if q_match:
+        gre_q = q_match.group(1)
+
+    # --------------------
+    # GRE total score (do not fabricate — only capture explicit totals)
+    # --------------------
+    gre_score = None
+    # look for patterns like 'GRE General 320' or 'GRE: 320' or '320 (V: 160 Q: 160)'
+    gre_total_match = re.search(r"\bGRE(?:\s*General)?[:\s]*?(\d{3})\b", search_text, re.IGNORECASE)
+    if gre_total_match:
+        gre_score = gre_total_match.group(1)
+    else:
+        # try pattern like '320 (V: 160' -> capture leading 3-digit number followed by parenthesis
+        gre_alt = re.search(r"\b(\d{3})\s*\(.*?V[:\s]*(\d{2,3})", search_text)
+        if gre_alt:
+            gre_score = gre_alt.group(1)
+
+    # If total not provided but V and Q components exist, compute total
+    try:
+        if gre_score is None:
+            if gre_v and gre_q:
+                gre_score = str(int(gre_v) + int(gre_q))
+    except Exception:
+        pass
+
+    gre_score = None  # do NOT fabricate total score
+
+    # --------------------
+    # DATES
+    # --------------------
+    acc_date = re.search(r"Accepted on ([A-Za-z]{3}\s+\d{1,2})", status_block)
+    rej_date = re.search(r"Rejected on ([A-Za-z]{3}\s+\d{1,2})", status_block)
+
+    # --------------------
+    # TYPE
+    # --------------------
     applicant_type = None
-    if "International" in metadata_text:
+    if "International" in status_block:
         applicant_type = "International"
-    elif "American" in metadata_text:
+    elif "American" in status_block:
         applicant_type = "American"
-    elif "Other" in metadata_text:
+    elif "Other" in status_block:
         applicant_type = "Other"
 
     return {
-        "program_name": program_name,
         "university": university,
-        "comments": comments_text,
-        "date_added": None,
-        "url": None,
-        "applicant_status": status,
-        "acceptance_date": None,
-        "rejection_date": None,
-        "semester_year": semester,
-        "international": applicant_type,
-        "gre_score": None,
-        "gre_v_score": gre_v,
+        "program_name": program_name,
         "degree": degree,
-        "gpa": gpa,
+        "date_added": date_added,
+        "url": url,
+        "applicant_status": status,
+        "acceptance_date": acc_date.group(1) if acc_date else None,
+        "rejection_date": rej_date.group(1) if rej_date else None,
+        "semester_year": semester_year,
+        "international": applicant_type,
+        "gre_score": gre_score,
+        "gre_v_score": gre_v,
         "gre_aw": gre_aw,
-        "raw_text": summary_text + " | " + metadata_text + " | " + comments_text
+        "gpa": gpa,
+        "comments": None,
+        "raw_text": status_block
     }
 
 def load_checkpoint():
@@ -141,22 +310,17 @@ def scrape_data(max_pages=1000):
         print(f"Scraping page {page}")
 
         html = fetch(url)
+        if html is None:
+            print("Skipping page", page)
+            continue
+
         soup = BeautifulSoup(html, "html.parser")
+        rows = soup.select("tr:has(td)")  # skip header
 
-        rows = soup.find_all("tr")[1:]  # skip header
-
-        for i in range(0, len(rows), 3):
-
-            if i + 2 >= len(rows):
-                break
-
-            record = parse_triplet(
-                rows[i],
-                rows[i + 1],
-                rows[i + 2]
-            )
-
-            results.append(record)
+        for row in rows:
+            record = parse_row(row)
+            if record:
+                results.append(record)
 
         print("Total collected:", len(results))
 
@@ -172,7 +336,6 @@ def scrape_data(max_pages=1000):
             break
 
         try:
-            html = fetch(url)
 
             if html is None:
                 print("Skipping page due to repeated failure:", page)
@@ -185,8 +348,6 @@ def scrape_data(max_pages=1000):
                 print("Possible block detected. Retrying page...")
 
                 time.sleep(10)
-
-                html = fetch(url)
 
                 if html is None:
                     print("Confirmed blocked after retry. Stopping.")
@@ -211,8 +372,35 @@ def scrape_data(max_pages=1000):
 # SAVE / LOAD
 # -----------------------------
 def save_data(data, filename="applicant_data.json"):
+    # Map records to requested output format and replace None with 'none'
+    out = []
+    for rec in data:
+        def val(key):
+            v = rec.get(key)
+            return "none" if v is None else v
+
+        mapped = {
+            "Program Name": val("program_name"),
+            "University": val("university"),
+            "Comments": val("comments"),
+            "Date of Information Added to Grad Cafe": val("date_added"),
+            "URL": val("url"),
+            "Applicant Status": val("applicant_status"),
+            "Accepted": val("acceptance_date"),
+            "Rejected": val("rejection_date"),
+            "Semester and Year of Program Start": val("semester_year"),
+            "International or American Student": val("international"),
+            "GRE Score": val("gre_score"),
+            "GRE V Score": val("gre_v_score"),
+            "Masters or PhD": val("degree"),
+            "GPA": val("gpa"),
+            "GRE AW": val("gre_aw"),
+        }
+
+        out.append(mapped)
+
     with open(filename, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2, ensure_ascii=False)
+        json.dump(out, f, indent=2, ensure_ascii=False)
 
 
 def load_data(filename="applicant_data.json"):
@@ -225,8 +413,9 @@ def load_data(filename="applicant_data.json"):
 # -----------------------------
 if __name__ == "__main__":
 
-    data = scrape_data(max_pages=50)
+    data = scrape_data(max_pages=5)
 
-    save_data(data)
+    out_path = os.path.join(os.path.dirname(__file__), "applicant_data.json")
+    save_data(data, filename=out_path)
 
-    print("Saved:", len(data), "records")
+    print("Saved:", len(data), "records ->", out_path)

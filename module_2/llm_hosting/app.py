@@ -205,6 +205,16 @@ def _post_normalize_university(uni: str) -> str:
     return match or u or "Unknown"
 
 
+def _program_text(row: Dict[str, Any]) -> str:
+    if not isinstance(row, dict):
+        return ""
+    program = str(row.get("program") or row.get("Program Name") or row.get("program_name") or "").strip()
+    university = str(row.get("University") or row.get("university") or "").strip()
+    if program and university:
+        return f"{program}, {university}"
+    return program or university or ""
+
+
 def _call_llm(program_text: str) -> Dict[str, str]:
     """Query the tiny LLM and return standardized fields."""
     llm = _load_llm()
@@ -293,6 +303,18 @@ def _cli_process_file(
     with open(in_path, "r", encoding="utf-8") as f:
         rows = _normalize_input(json.load(f))
 
+    if out_path and out_path.lower().endswith(".json"):
+        processed = []
+        for row in rows:
+            program_text = _program_text(row)
+            result = _call_llm(program_text)
+            row["llm-generated-program"] = result["standardized_program"]
+            row["llm-generated-university"] = result["standardized_university"]
+            processed.append(row)
+        with open(out_path, "w", encoding="utf-8") as sink:
+            json.dump(processed, sink, ensure_ascii=False, indent=2)
+        return
+
     sink = sys.stdout if to_stdout else None
     if not to_stdout:
         out_path = out_path or (in_path + ".jsonl")
@@ -303,7 +325,7 @@ def _cli_process_file(
 
     try:
         for row in rows:
-            program_text = (row or {}).get("program") or ""
+            program_text = _program_text(row)
             result = _call_llm(program_text)
             row["llm-generated-program"] = result["standardized_program"]
             row["llm-generated-university"] = result["standardized_university"]
