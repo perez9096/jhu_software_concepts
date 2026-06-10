@@ -3,6 +3,7 @@
 ## Overview
 
 This folder contains the data ingesion layer and Flask frontend application supporting the Grad Cafe applicant analytics pipeline.
+Chatgpt was used to aid in debugging and cleaning up scripts to reduce number of scripts needed to run.
 
 The main flow is:
 1. `module_3/supporting scripts/scraper.py` collects applicant records from thegradcafe.com and writes JSON output. Currently max pages set to 50 for webpage button.
