@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1>{% block title %}Applicants Analysis{% endblock %}</h1>
+
+<div class="top-actions">
+  <div class="action-card">
+    <form method="post" action="{{ url_for('pull_data') }}">
+      <button type="submit" {% if scrape_running %}disabled{% endif %}>Pull Data</button>
+      <p>
+        Click this button to pull any new Grad Cafe records and add them to the database.
+        If a data pull is already running, this button is disabled until it finishes.
+      </p>
+    </form>
+  </div>
+
+  <div class="action-card" style="align-self:flex-start;">
+    <form method="post" action="{{ url_for('update_analysis') }}">
+      <button type="submit">Update Analysis</button>
+      <p>
+        Refresh the analysis page so the latest database results are shown. This does nothing while a data pull is in progress.
+      </p>
+    </form>
+  </div>
+</div>
+
+{% if status_message %}
+  <div class="alert alert-info">{{ status_message }}</div>
+{% endif %}
+
+{% if scrape_running %}
+  <div class="alert alert-warning">{{ scrape_message }}</div>
+{% endif %}
+
+{% if db_error %}
+  <div class="alert alert-warning">
+    <strong>Database unavailable:</strong> {{ db_error }}<br>
+    Showing fallback summary from local JSON data.
+  </div>
+{% endif %}
+
+{% if stats %}
+  <div class="results">
+    <div class="stat-block">
+      <h2>1. Number of accepted applicants for Fall 2026</h2>
+      <p>{{ stats.accepted_fall2026_count or 0 }}</p>
+    </div>
+
+    <div class="stat-block">
+      <h2>2. Percentage of entries from international students</h2>
+      <p>
+        {% if stats.international_pct is not none %}
+          {{ "%.2f" | format(stats.international_pct) }}%
+        {% else %}
+          N/A
+        {% endif %}
+      </p>
+    </div>
+
+    <div class="stat-block">
+      <h2>3. Average GPA, GRE, GRE V, GRE AW of applicants who provide these metrics</h2>
+      <p>
+        GPA: {% if stats.avg_gpa is not none %}{{ "%.2f" | format(stats.avg_gpa) }}{% else %}N/A{% endif %}<br>
+        GRE: {% if stats.avg_gre is not none %}{{ "%.2f" | format(stats.avg_gre) }}{% else %}N/A{% endif %}<br>
+        GRE V: {% if stats.avg_gre_v is not none %}{{ "%.2f" | format(stats.avg_gre_v) }}{% else %}N/A{% endif %}<br>
+        GRE AW: {% if stats.avg_gre_aw is not none %}{{ "%.2f" | format(stats.avg_gre_aw) }}{% else %}N/A{% endif %}
+      </p>
+    </div>
+
+    <div class="stat-block">
+      <h2>4. Average GPA of American students in Fall 2026:</h2>
+      <p>
+        {% if stats.avg_gpa_american_fall2026 is not none %}
+          {{ "%.2f" | format(stats.avg_gpa_american_fall2026) }}
+        {% else %}
+          N/A
+        {% endif %}
+      </p>
+    </div>
+
+    <div class="stat-block">
+      <h2>5. Percentage of acceptances for Fall 2026:</h2>
+      <p>
+        {% if stats.acceptance_percentage is not none %}
+          {{ "%.2f" | format(stats.acceptance_percentage) }}%
+        {% else %}
+          N/A
+        {% endif %}
+      </p>
+    </div>
+
+    <div class="stat-block">
+      <h2>6. Average GPA of accepted applicants for Fall 2026:</h2>
+      <p>
+        {% if stats.avg_gpa_accepted_fall2026 is not none %}
+          {{ "%.2f" | format(stats.avg_gpa_accepted_fall2026) }}
+        {% else %}
+          N/A
+        {% endif %}
+      </p>
+    </div>
+
+    <div class="stat-block">
+      <h2>7. Number of applicants who applied to JHU for a masters degree in Computer Science:</h2>
+      <p>{{ stats.jhu_masters_count or 0 }}</p>
+    </div>
+
+    <div class="stat-block">
+      <h2>8. Number of acceptances in 2026 from applicants who applied to Georgetown University, MIT, Stanford University, or Carnegie Mellon University for a PhD in Computer Science:</h2>
+      <p>{{ stats.top_universities_phd_accepted_2026_count or 0 }}</p>
+    </div>
+
+    <div class="stat-block">
+      <h2>9. Number of acceptances in 2026 from applicants who applied to Georgetown University, MIT, Stanford University, or Carnegie Mellon University for a PhD in Computer Science using LLM Generated Fields:</h2>
+      <p>{{ stats.top_universities_phd_accepted_2026_llm_count or 0 }}</p>
+    </div>
+  </div>
+{% else %}
+  <p>No summary statistics available.</p>
+{% endif %}
+
+{% endblock %}

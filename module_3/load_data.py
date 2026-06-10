@@ -6,7 +6,7 @@ from typing import Any, Dict, Optional
 
 import psycopg
 
-
+# parsing date/time data fields
 def parse_date(s: Optional[str]) -> Optional[datetime.date]:
     if not s:
         return None
@@ -37,7 +37,7 @@ def parse_date(s: Optional[str]) -> Optional[datetime.date]:
         pass
     return None
 
-
+# cleaning numeric fields (GPA, GRE, etc.) to replace NULL and None.
 def clean_number(val: Any) -> Optional[float]:
     if val is None:
         return None
@@ -60,7 +60,7 @@ def clean_number(val: Any) -> Optional[float]:
                 return None
     return None
 
-
+# loading data from JSONL, mapping to standardized fields, and inserting into Postgres with upsert logic.
 def map_row(applicant: Dict[str, Any]) -> Dict[str, Any]:
     prog = applicant.get("Program Name") or applicant.get("program") or applicant.get("program_name")
     comments = applicant.get("Comments")
@@ -95,6 +95,7 @@ def map_row(applicant: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+# Main function to load data from JSONL, map fields, and insert into Postgres with upsert logic. Also includes example queries to demonstrate loaded data.
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--file", default="small_output.json", help="Input JSONL file (list of rows)")
@@ -171,7 +172,7 @@ def main():
         llm_generated_program = EXCLUDED.llm_generated_program,
         llm_generated_university = EXCLUDED.llm_generated_university;
     """
-
+# listing all rows to be inserted/updated and then performing queries to demonstrate the loaded data.
     with conn.cursor() as cur:
         cur.execute(create_sql)
         cur.execute(
