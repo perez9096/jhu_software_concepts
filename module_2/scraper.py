@@ -4,6 +4,7 @@ from urllib.request import Request, urlopen
 from urllib import robotparser
 from urllib.parse import urljoin
 from bs4 import BeautifulSoup
+import argparse
 import json
 import re
 import time
@@ -284,26 +285,36 @@ def parse_row(row):
         "raw_text": status_block
     }
 
-def load_checkpoint():
-    if os.path.exists(CHECKPOINT_FILE):
-        with open(CHECKPOINT_FILE, "r") as f:
+def load_checkpoint(checkpoint_file=CHECKPOINT_FILE):
+    if os.path.exists(checkpoint_file):
+        with open(checkpoint_file, "r", encoding="utf-8") as f:
             return json.load(f)
-    return {"page": 1, "data": []}
+    return {"page": 0}
 
-def save_checkpoint(page, data):
-    with open(CHECKPOINT_FILE, "w") as f:
-        json.dump({"page": page, "data": data}, f)
+
+def save_checkpoint(page, checkpoint_file=CHECKPOINT_FILE):
+    with open(checkpoint_file, "w", encoding="utf-8") as f:
+        json.dump({"page": page}, f)
+        f.flush()
         
 # -----------------------------
 # SCRAPER CORE
 # -----------------------------
-def scrape_data(max_pages=1000):
+def scrape_data(
+    max_pages=1000,
+    start_page=1,
+    results=None,
+    save_every=5,
+    out_path=OUTPUT_FILE,
+    checkpoint_file=CHECKPOINT_FILE,
+):
 
     check_robots()
 
-    results = []
+    if results is None:
+        results = []
 
-    for page in range(1, max_pages + 1):
+    for page in range(start_page, max_pages + 1):
 
         url = f"{BASE_URL}/survey?page={page}"
 
@@ -327,12 +338,21 @@ def scrape_data(max_pages=1000):
         # polite scraping
         time.sleep(3)
 
+        if page % save_every == 0:
+            print(f"Saving progress at page {page} ({len(results)} records)")
+            save_data(results, filename=out_path)
+            save_checkpoint(page, checkpoint_file=checkpoint_file)
+
         if len(results) >= 30000:
             print("Reached 30,000 records")
+            save_data(results, filename=out_path)
+            save_checkpoint(page, checkpoint_file=checkpoint_file)
             break
 
         if "No results found" in html:
             print("Stopping - no more data")
+            save_data(results, filename=out_path)
+            save_checkpoint(page, checkpoint_file=checkpoint_file)
             break
 
         try:
@@ -365,6 +385,9 @@ def scrape_data(max_pages=1000):
             time.sleep(5)
             continue
 
+    # final save after finishing loop
+    save_data(results, filename=out_path)
+    save_checkpoint(page if 'page' in locals() else start_page - 1, checkpoint_file=checkpoint_file)
     return results
 
 
@@ -412,10 +435,70 @@ def load_data(filename="applicant_data.json"):
 # MAIN
 # -----------------------------
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Scrape The Grad Cafe applicant data.")
+    parser.add_argument(
+        "--pages",
+        type=int,
+        default=100,
+        help="Maximum number of survey pages to scrape (default: 100)",
+    )
+    parser.add_argument(
+        "--out",
+        default="applicant_data.json",
+        help="Output JSON file path (default: applicant_data.json)",
+    )
+    parser.add_argument(
+        "--save-every",
+        type=int,
+        default=5,
+        help="Save progress every N pages (default: 5)",
+    )
+    parser.add_argument(
+        "--checkpoint",
+        default="checkpoint.json",
+        help="Checkpoint file path (default: checkpoint.json)",
+    )
+    parser.add_argument(
+        "--resume",
+        action="store_true",
+        help="Resume from existing checkpoint if present.",
+    )
+    args = parser.parse_args()
 
-    data = scrape_data(max_pages=5)
+    script_dir = os.path.dirname(__file__)
+    if os.path.isabs(args.out):
+        out_path = args.out
+    elif os.path.dirname(args.out):
+        out_path = os.path.abspath(args.out)
+    else:
+        out_path = os.path.join(script_dir, args.out)
 
-    out_path = os.path.join(os.path.dirname(__file__), "applicant_data.json")
-    save_data(data, filename=out_path)
+    if os.path.isabs(args.checkpoint):
+        checkpoint_path = args.checkpoint
+    elif os.path.dirname(args.checkpoint):
+        checkpoint_path = os.path.abspath(args.checkpoint)
+    else:
+        checkpoint_path = os.path.join(script_dir, args.checkpoint)
+
+    start_page = 1
+    results = []
+    if args.resume and os.path.exists(checkpoint_path):
+        checkpoint = load_checkpoint(checkpoint_path)
+        start_page = checkpoint.get("page", 0) + 1
+        if os.path.exists(out_path):
+            results = load_data(out_path)
+        print(f"Resuming from page {start_page} with {len(results)} existing records")
+    else:
+        if os.path.exists(out_path):
+            print(f"Overwriting existing output: {out_path}")
+
+    data = scrape_data(
+        max_pages=args.pages,
+        start_page=start_page,
+        results=results,
+        save_every=args.save_every,
+        out_path=out_path,
+        checkpoint_file=checkpoint_path,
+    )
 
     print("Saved:", len(data), "records ->", out_path)

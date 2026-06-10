@@ -97,7 +97,7 @@ def map_row(applicant: Dict[str, Any]) -> Dict[str, Any]:
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--file", default="small_output.json", help="Input JSON file (list of rows)")
+    parser.add_argument("--file", default="small_output.json", help="Input JSONL file (list of rows)")
     parser.add_argument("--limit", type=int, default=None, help="Optional limit to number of rows to load")
     args = parser.parse_args()
 
@@ -111,7 +111,7 @@ def main():
             infile = os.path.join(os.getcwd(), infile)
 
     with open(infile, "r", encoding="utf-8") as f:
-        rows = json.load(f)
+        rows = [json.loads(line) for line in f]
 
     if args.limit:
         rows = rows[: args.limit]
@@ -194,9 +194,91 @@ def main():
         cur.execute("""
                     SELECT COUNT(*) FROM applicants
                     WHERE term = %s AND status = %s;
-                """, ('Fall 2026', 'Accepted'))
+                """, ('Fall 2025', 'Accepted'))
         count_result = cur.fetchone()
-        print(f"Number of accepted applicants for Fall 2026: {count_result[0]}")
+        print(f"Number of accepted applicants for Fall 2025: {count_result[0]}")
+
+        # 2. What Percentage of entries are from international students?
+        cur.execute("""
+                    SELECT COUNT(*) FROM applicants
+                    WHERE us_or_international = %s;
+                """, ('International',))
+        international_count = cur.fetchone()[0]
+
+        total_count = count_result[0]
+        if total_count > 0:
+            percentage = (international_count / total_count) * 100
+            print(f"Percentage of international students: {percentage:.2f}%")
+        else:
+            print("2. No entries found.")
+
+        # 3. What is the average GPA, GRE, GRE V, GRE AW of applicants who provide these metrics.
+        cur.execute("""
+                    SELECT AVG(gpa), AVG(gre), AVG(gre_v), AVG(gre_aw) FROM applicants
+                    WHERE gpa IS NOT NULL OR gre IS NOT NULL OR gre_v IS NOT NULL OR gre_aw IS NOT NULL;
+                """)
+        avg_result = cur.fetchone()
+        print(f"Average GPA: {avg_result[0]:.2f}, Average GRE: {avg_result[1]:.2f}, Average GRE V: {avg_result[2]:.2f}, Average GRE AW: {avg_result[3]:.2f}")
+
+        # 4. What is the average GPA of American students in the Fall 2026 term.
+        cur.execute("""
+                    SELECT AVG(gpa) FROM applicants
+                    WHERE us_or_international = %s AND term = %s AND gpa IS NOT NULL;
+                """, ('American', 'Fall 2026'))
+        avg_gpa_american_fall2026 = cur.fetchone()[0]
+        if avg_gpa_american_fall2026 is not None:
+            print(f"Average GPA of American students in Fall 2026: {avg_gpa_american_fall2026:.2f}")
+        else:
+            print("4. No entries found for American students in Fall 2026 with GPA data.")
+
+        # 5. What percent of entries for Fall 2026 are Acceptances
+        cur.execute("""
+                    SELECT COUNT(*) FROM applicants
+                    WHERE term = %s AND status = %s;
+                """, ('Fall 2026', 'Accepted'))
+        total_fall2026 = cur.fetchone()[0]
+        if total_fall2026 > 0:
+            acceptance_percentage = (count_result[0] / total_fall2026) * 100
+            print(f"Percentage of acceptances for Fall 2026: {acceptance_percentage:.2f}%")
+        else:
+            print("5. No entries found for Fall 2026.")
+
+        # 6. What is the average GPA of applicants who applied for Fall 2026 who are Acceptances.
+        cur.execute("""
+                    SELECT AVG(gpa) FROM applicants
+                    WHERE term = %s AND status = %s AND gpa IS NOT NULL;
+                """, ('Fall 2026', 'Accepted'))
+        avg_gpa_accepted_fall2026 = cur.fetchone()[0]
+        if avg_gpa_accepted_fall2026 is not None:
+            print(f"Average GPA of accepted applicants for Fall 2026: {avg_gpa_accepted_fall2026:.2f}")
+        else:
+            print("6. No entries found for accepted applicants for Fall 2026 with GPA data.")
+
+        # 7. How many entries are from applicants who applied to JHU for a masters degree in Computer Science
+        cur.execute("""
+                    SELECT COUNT(*) FROM applicants
+                    WHERE program ILIKE %s AND degree ILIKE %s;
+                """, ('%Johns Hopkins University%', '%Masters%'))
+        jhu_masters_count = cur.fetchone()[0]
+        print(f"Number of applicants who applied to JHU for a masters degree in Computer Science: {jhu_masters_count}")
+
+        # 8. How many entries from 2026 are acceptances from applicants who applied to Georgetown University, MIT, Standford University, or Carnegie Mellon University for a PhD in Computer Science.
+        cur.execute("""
+                    SELECT COUNT(*) FROM applicants
+                    WHERE term ILIKE %s AND status ILIKE %s AND program ILIKE ANY (ARRAY[%s, %s, %s, %s]) AND degree ILIKE %s;
+                """, ('%2026%', '%Accepted%', '%Georgetown University%', '%MIT%', '%Stanford University%', '%Carnegie Mellon University%', '%PhD%'))
+        top_universities_phd_accepted_2026_count = cur.fetchone()[0]
+        print(f"Number of acceptances in 2026 from applicants who applied to Georgetown University, MIT, Stanford University, or Carnegie Mellon University for a PhD in Computer Science: {top_universities_phd_accepted_2026_count}")
+
+        # 9. Does the numbers for 8. change if using LLM Generated Fields (rather than the original program and degree fields).
+        cur.execute("""
+                    SELECT COUNT(*) FROM applicants
+                    WHERE term ILIKE %s AND status ILIKE %s AND llm_generated_university ILIKE ANY (ARRAY[%s, %s, %s, %s]) AND llm_generated_program ILIKE %s;
+                """, ('%2026%', '%Accepted%', '%Georgetown University%', '%MIT%', '%Stanford University%', '%Carnegie Mellon University%', '%PhD%'))
+        top_universities_phd_accepted_2026_llm_count = cur.fetchone()[0]
+        print(f"Number of acceptances in 2026 from applicants who applied to Georgetown University, MIT, Stanford University, or Carnegie Mellon University for a PhD in Computer Science using LLM Generated Fields: {top_universities_phd_accepted_2026_llm_count}")
+
+
 
     conn.commit()
     conn.close()
