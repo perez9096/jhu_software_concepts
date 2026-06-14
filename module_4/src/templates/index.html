@@ -43,12 +43,12 @@
   <div class="results">
     <div class="stat-block">
       <h2>1. Number of applicants for Fall 2026</h2>
-      <p>{{ stats.fall2026_entries_count or 0 }}</p>
+      <p>Answer: {{ stats.fall2026_entries_count or 0 }}</p>
     </div>
 
     <div class="stat-block">
       <h2>2. Percentage of entries from international students</h2>
-      <p>
+      <p>Answer:
         {% if stats.international_pct is not none %}
           {{ "%.2f" | format(stats.international_pct) }}%
         {% else %}
@@ -59,7 +59,7 @@
 
     <div class="stat-block">
       <h2>3. Average GPA, GRE, GRE V, GRE AW of applicants who provide these metrics</h2>
-      <p>
+      <p>Answer:
         GPA: {% if stats.avg_gpa is not none %}{{ "%.2f" | format(stats.avg_gpa) }}{% else %}N/A{% endif %}<br>
         GRE: {% if stats.avg_gre is not none %}{{ "%.2f" | format(stats.avg_gre) }}{% else %}N/A{% endif %}<br>
         GRE V: {% if stats.avg_gre_v is not none %}{{ "%.2f" | format(stats.avg_gre_v) }}{% else %}N/A{% endif %}<br>
@@ -69,7 +69,7 @@
 
     <div class="stat-block">
       <h2>4. Average GPA of American students in Fall 2026:</h2>
-      <p>
+      <p>Answer:
         {% if stats.avg_gpa_american_fall2026 is not none %}
           {{ "%.2f" | format(stats.avg_gpa_american_fall2026) }}
         {% else %}
@@ -80,7 +80,7 @@
 
     <div class="stat-block">
       <h2>5. Percentage of acceptances for Fall 2026:</h2>
-      <p>
+      <p>Answer:
         {% if stats.acceptance_percentage is not none %}
           {{ "%.2f" | format(stats.acceptance_percentage) }}%
         {% else %}
@@ -91,7 +91,7 @@
 
     <div class="stat-block">
       <h2>6. Average GPA of accepted applicants for Fall 2026:</h2>
-      <p>
+      <p>Answer:
         {% if stats.avg_gpa_accepted_fall2026 is not none %}
           {{ "%.2f" | format(stats.avg_gpa_accepted_fall2026) }}
         {% else %}
@@ -102,17 +102,17 @@
 
     <div class="stat-block">
       <h2>7. Number of applicants who applied to JHU for a masters degree in Computer Science:</h2>
-      <p>{{ stats.jhu_masters_count or 0 }}</p>
+      <p>Answer: {{ stats.jhu_masters_count or 0 }}</p>
     </div>
 
     <div class="stat-block">
       <h2>8. Number of acceptances in 2026 from applicants who applied to Georgetown University, MIT, Stanford University, or Carnegie Mellon University for a PhD in Computer Science:</h2>
-      <p>{{ stats.top_universities_phd_accepted_2026_count or 0 }}</p>
+      <p>Answer: {{ stats.top_universities_phd_accepted_2026_count or 0 }}</p>
     </div>
 
     <div class="stat-block">
       <h2>9. Number of acceptances in 2026 from applicants who applied to Georgetown University, MIT, Stanford University, or Carnegie Mellon University for a PhD in Computer Science using LLM Generated Fields:</h2>
-      <p>{{ stats.top_universities_phd_accepted_2026_llm_count or 0 }}</p>
+      <p>Answer: {{ stats.top_universities_phd_accepted_2026_llm_count or 0 }}</p>
     </div>
   </div>
 {% else %}

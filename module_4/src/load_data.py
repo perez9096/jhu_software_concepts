@@ -96,6 +96,84 @@ def map_row(applicant: Dict[str, Any]) -> Dict[str, Any]:
         "llm_generated_university": llm_uni,
     }
 
+CREATE_SQL = """
+CREATE TABLE IF NOT EXISTS applicants (
+    p_id SERIAL PRIMARY KEY,
+    program TEXT,
+    comments TEXT,
+    date_added DATE,
+    url TEXT UNIQUE,
+    status TEXT,
+    term TEXT,
+    us_or_international TEXT,
+    gpa DOUBLE PRECISION,
+    gre DOUBLE PRECISION,
+    gre_v DOUBLE PRECISION,
+    gre_aw DOUBLE PRECISION,
+    university TEXT,
+    degree TEXT,
+    llm_generated_program TEXT,
+    llm_generated_university TEXT
+);
+"""
+
+UPSERT_SQL = """
+INSERT INTO applicants (
+    program, comments, date_added, url, status, term, us_or_international, gpa, gre, gre_v, gre_aw, degree, university, llm_generated_program, llm_generated_university
+) VALUES (
+    %(program)s, %(comments)s, %(date_added)s, %(url)s, %(status)s, %(term)s, %(us_or_international)s, %(gpa)s, %(gre)s, %(gre_v)s, %(gre_aw)s, %(degree)s, %(university)s, %(llm_generated_program)s, %(llm_generated_university)s
+) ON CONFLICT (url) DO UPDATE SET
+    program = EXCLUDED.program,
+    comments = EXCLUDED.comments,
+    date_added = EXCLUDED.date_added,
+    status = EXCLUDED.status,
+    term = EXCLUDED.term,
+    us_or_international = EXCLUDED.us_or_international,
+    gpa = EXCLUDED.gpa,
+    gre = EXCLUDED.gre,
+    gre_v = EXCLUDED.gre_v,
+    gre_aw = EXCLUDED.gre_aw,
+    degree = EXCLUDED.degree,
+    university = EXCLUDED.university,
+    llm_generated_program = EXCLUDED.llm_generated_program,
+    llm_generated_university = EXCLUDED.llm_generated_university;
+"""
+
+def create_applicants_table(cur):
+    cur.execute(CREATE_SQL)
+    cur.execute("ALTER TABLE applicants ADD COLUMN IF NOT EXISTS university TEXT;")
+
+
+def insert_applicants(cur, rows):
+    for raw in rows:
+        mapped = map_row(raw)
+        cur.execute(UPSERT_SQL, mapped)
+
+
+def get_applicant_count(cur):
+    cur.execute("SELECT COUNT(*) FROM applicants;")
+    return cur.fetchone()[0]
+
+
+def get_first_applicant_dict(cur):
+    cur.execute("""
+        SELECT program, university, url, status, term, degree
+        FROM applicants
+        LIMIT 1;
+    """)
+    row = cur.fetchone()
+
+    if row is None:
+        return None
+
+    return {
+        "program": row[0],
+        "university": row[1],
+        "url": row[2],
+        "status": row[3],
+        "term": row[4],
+        "degree": row[5],
+    }
 
 # Main function to load data from JSONL, map fields, and insert into Postgres with upsert logic. Also includes example queries to demonstrate loaded data.
 def main():
@@ -134,64 +212,16 @@ def main():
         port=DB_PORT,
     )
 
-    create_sql = """
-    CREATE TABLE IF NOT EXISTS applicants (
-        p_id SERIAL PRIMARY KEY,
-        program TEXT,
-        comments TEXT,
-        date_added DATE,
-        url TEXT UNIQUE,
-        status TEXT,
-        term TEXT,
-        us_or_international TEXT,
-        gpa DOUBLE PRECISION,
-        gre DOUBLE PRECISION,
-        gre_v DOUBLE PRECISION,
-        gre_aw DOUBLE PRECISION,
-        university TEXT,
-        degree TEXT,
-        llm_generated_program TEXT,
-        llm_generated_university TEXT
-    );
-    """
-
-    upsert_sql = """
-    INSERT INTO applicants (
-        program, comments, date_added, url, status, term, us_or_international, gpa, gre, gre_v, gre_aw, degree, university, llm_generated_program, llm_generated_university
-    ) VALUES (
-        %(program)s, %(comments)s, %(date_added)s, %(url)s, %(status)s, %(term)s, %(us_or_international)s, %(gpa)s, %(gre)s, %(gre_v)s, %(gre_aw)s, %(degree)s, %(university)s, %(llm_generated_program)s, %(llm_generated_university)s
-    ) ON CONFLICT (url) DO UPDATE SET
-        program = EXCLUDED.program,
-        comments = EXCLUDED.comments,
-        date_added = EXCLUDED.date_added,
-        status = EXCLUDED.status,
-        term = EXCLUDED.term,
-        us_or_international = EXCLUDED.us_or_international,
-        gpa = EXCLUDED.gpa,
-        gre = EXCLUDED.gre,
-        gre_v = EXCLUDED.gre_v,
-        gre_aw = EXCLUDED.gre_aw,
-        degree = EXCLUDED.degree,
-        university = EXCLUDED.university,
-        llm_generated_program = EXCLUDED.llm_generated_program,
-        llm_generated_university = EXCLUDED.llm_generated_university;
-    """
 # listing all rows to be inserted/updated and then performing queries to demonstrate the loaded data.
     with conn.cursor() as cur:
-        cur.execute(create_sql)
-
-        # Add University column if it doesn't exits
-        cur.execute("ALTER TABLE applicants ADD COLUMN IF NOT EXISTS university TEXT;")
+        create_applicants_table(cur)
 
         cur.execute(
             "DELETE FROM applicants a USING applicants b WHERE a.url = b.url AND a.ctid < b.ctid;"
         )
         cur.execute("CREATE UNIQUE INDEX IF NOT EXISTS applicants_url_idx ON applicants (url);")
 
-        for raw in rows:
-            mapped = map_row(raw)
-            # psycopg accepts python date objects directly
-            cur.execute(upsert_sql, mapped)
+        insert_applicants(cur, rows)
 
         # Outputing first row to see an example of the loaded data
         cur.execute("SELECT * FROM applicants LIMIT 1;")

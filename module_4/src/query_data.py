@@ -11,10 +11,12 @@ import psycopg
 from flask import Flask, render_template, request, redirect, url_for
 
 # Setting Flask
-app = Flask(__name__)
 SCRIPT_DIR = Path(__file__).resolve().parent
-REPO_ROOT = SCRIPT_DIR.parent.parent
 
+app = Flask(
+    __name__,
+    template_folder=str(SCRIPT_DIR / "templates")
+)
 scrape_status = {
     "running": False,
     "message": None,
@@ -416,19 +418,25 @@ def _run_scraper_and_load():
 @app.route('/pull-data', methods=['POST'])
 def pull_data():
     if is_scrape_running():
-        return redirect(url_for('index', message='A Pull Data request is already running. Please wait until it finishes.'))
+        return "A Pull Data request is already running.", 409
 
     thread = threading.Thread(target=_run_scraper_and_load, daemon=True)
     thread.start()
-    return redirect(url_for('index', message='Pull Data started. The scraper is now running and will update the database when complete.'))
 
+    return redirect(url_for(
+        'index',
+        message='Pull Data started. The scraper is now running and will update the database when complete.'
+    ))
 
 @app.route('/update-analysis', methods=['POST'])
 def update_analysis():
     if is_scrape_running():
-        return redirect(url_for('index', message='Cannot update analysis while Pull Data is running. Please wait.'))
-    return redirect(url_for('index', message='Analysis refreshed with the latest database content.'))
+        return "Cannot update analysis while Pull Data is running.", 409
 
+    return redirect(url_for(
+        'index',
+        message='Analysis refreshed with the latest database content.'
+    ))
 
 @app.route('/')
 def index():
@@ -459,6 +467,9 @@ def index():
         scrape_message=scrape_message,
     )
 
+@app.route('/analysis')
+def analysis():
+    return index()
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8000)

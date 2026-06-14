@@ -1,0 +1,61 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Environment variables / secrets
+.env
+.env.*
+
+# Flask
+instance/
+.flaskenv
+
+# VS Code / Codespaces
+.vscode/
+.history/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
+
+# PostgreSQL dumps
+*.sql
+*.dump
+
+# Logs
+*.log
+
+# Generated applicant data
+applicant_data.json
+applicant_data_llm.json
+checkpoint.json
+
+# Large model files
+*.gguf
+*.bin
+*.safetensors
+
+# Archives
+*.zip
+*.tar.gz
+
+# Testing / coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
