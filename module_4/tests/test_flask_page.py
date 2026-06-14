@@ -21,7 +21,7 @@ def client():
     with app.test_client() as client:
         yield client
 
-@pytest.mark.web
+
 def test_app_has_required_routes():
     routes = [rule.rule for rule in app.url_map.iter_rules()]
 
@@ -31,13 +31,13 @@ def test_app_has_required_routes():
     assert "/update-analysis" in routes
 
 
-@pytest.mark.web
+
 def test_get_analysis_page_loads(client):
     response = client.get("/analysis")
 
     assert response.status_code == 200
 
-@pytest.mark.web
+
 def test_analysis_page_contains_buttons(client):
     response = client.get("/analysis")
     page_text = response.data.decode("utf-8")
@@ -45,7 +45,7 @@ def test_analysis_page_contains_buttons(client):
     assert "Pull Data" in page_text
     assert "Update Analysis" in page_text
 
-@pytest.mark.web
+
 def test_analysis_page_contains_required_text(client):
     response = client.get("/analysis")
     page_text = response.data.decode("utf-8")

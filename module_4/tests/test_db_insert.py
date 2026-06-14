@@ -35,7 +35,7 @@ def db_conn():
 
     conn.close()
 
-@pytest.mark.db
+
 def sample_row():
     return {
         "Program Name": "Computer Science",
@@ -55,7 +55,7 @@ def sample_row():
         "llm-generated-university": "Johns Hopkins University",
     }
 
-@pytest.mark.db
+
 def test_insert_on_pull_adds_rows(db_conn):
     with db_conn.cursor() as cur:
         assert get_applicant_count(cur) == 0
@@ -65,7 +65,7 @@ def test_insert_on_pull_adds_rows(db_conn):
 
         assert get_applicant_count(cur) == 1
 
-@pytest.mark.db
+
 def test_insert_required_fields_not_null(db_conn):
     with db_conn.cursor() as cur:
         insert_applicants(cur, [sample_row()])
@@ -84,7 +84,7 @@ def test_insert_required_fields_not_null(db_conn):
         assert row[2] is not None
         assert row[3] is not None
 
-@pytest.mark.db
+
 def test_duplicate_rows_do_not_create_duplicates(db_conn):
     row = sample_row()
 
@@ -95,7 +95,7 @@ def test_duplicate_rows_do_not_create_duplicates(db_conn):
 
         assert get_applicant_count(cur) == 1
 
-@pytest.mark.db
+
 def test_simple_query_returns_expected_keys(db_conn):
     with db_conn.cursor() as cur:
         insert_applicants(cur, [sample_row()])

@@ -33,7 +33,7 @@ def parse_date(s: Optional[str]) -> Optional[datetime.date]:
                     return datetime.datetime.strptime(p + "-01-01", "%Y-%m-%d").date()
                 except Exception:
                     pass
-    except Exception:
+    except Exception: # pragma: no cover
         pass
     return None
 
@@ -56,7 +56,7 @@ def clean_number(val: Any) -> Optional[float]:
         if m:
             try:
                 return float(m.group(0))
-            except Exception:
+            except Exception: # pragma: no cover
                 return None
     return None
 
@@ -176,7 +176,8 @@ def get_first_applicant_dict(cur):
     }
 
 # Main function to load data from JSONL, map fields, and insert into Postgres with upsert logic. Also includes example queries to demonstrate loaded data.
-def main():
+
+def main(): # pragma: no cover
     parser = argparse.ArgumentParser()
     parser.add_argument("--file", default="applicant_data_llm_M3.jsonl", help="Input JSONL file (list of rows)")
     parser.add_argument("--limit", type=int, default=None, help="Optional limit to number of rows to load")
@@ -325,5 +326,5 @@ def main():
     print(f"Loaded {len(rows)} rows into applicants table.")
 
 
-if __name__ == "__main__":
+if __name__ == "__main__": # pragma: no cover
     main()

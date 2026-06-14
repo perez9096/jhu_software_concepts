@@ -28,17 +28,16 @@ status_lock = threading.Lock()
 # connecting to Postgres using environment variables for configuration, with defaults for local development.
 
 def get_db_connection():
-        
-    dbname = os.getenv("PGDATABASE", os.getenv("DB_NAME", "studentCourses"))
-    user = os.getenv("PGUSER", os.getenv("DB_USER", "postgres"))
-    password = os.getenv("PGPASSWORD", os.getenv("DB_PASSWORD", "postgres"))
-    host = os.getenv("PGHOST", os.getenv("DB_HOST", "localhost"))
-    port = os.getenv("PGPORT", os.getenv("DB_PORT", "5432"))
+    dbname = os.getenv("PGDATABASE") or os.getenv("DB_NAME")
+    user = os.getenv("PGUSER") or os.getenv("DB_USER")
+    password = os.getenv("PGPASSWORD") or os.getenv("DB_PASSWORD")
+    host = os.getenv("PGHOST") or os.getenv("DB_HOST") or "localhost"
+    port = os.getenv("PGPORT") or os.getenv("DB_PORT") or "5432"
 
     required = {
-        "PGDATABASE": dbname,
-        "PGUSER": user,
-        "PGPASSWORD": password,
+        "PGDATABASE or DB_NAME": dbname,
+        "PGUSER or DB_USER": user,
+        "PGPASSWORD or DB_PASSWORD": password,
     }
 
     missing = [key for key, value in required.items() if not value]
@@ -471,7 +470,7 @@ def index():
 def analysis():
     return index()
 
-if __name__ == '__main__':
+if __name__ == '__main__': # pragma: no cover
     app.run(host='0.0.0.0', port=8000)
 
     

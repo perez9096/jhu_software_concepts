@@ -66,6 +66,13 @@ def fake_pull_data(rows):
     conn.commit()
     conn.close()
 
+def set_test_db_env(monkeypatch):
+    monkeypatch.setenv("PGDATABASE", "studentCourses")
+    monkeypatch.setenv("PGUSER", "postgres")
+    monkeypatch.setenv("PGPASSWORD", "postgres")
+    monkeypatch.setenv("PGHOST", "localhost")
+    monkeypatch.setenv("PGPORT", "5432")
+
 def clear_db():
     conn = query_data.get_db_connection()
 
@@ -76,11 +83,23 @@ def clear_db():
     conn.commit()
     conn.close()
 
-@pytest.mark.integration
-def test_end_to_end_pull_update_render(client, fake_rows):
+
+def test_end_to_end_pull_update_render(client, fake_rows, monkeypatch):
+    set_test_db_env(monkeypatch)
     clear_db()
 
-    with patch.object(query_data, "_run_scraper_and_load", side_effect=lambda: fake_pull_data(fake_rows)):
+    class ImmediateThread:
+        def __init__(self, target, daemon=True):
+            self.target = target
+
+        def start(self):
+            self.target()
+
+    with patch.object(
+        query_data,
+        "_run_scraper_and_load",
+        side_effect=lambda: fake_pull_data(fake_rows),
+    ), patch.object(query_data.threading, "Thread", ImmediateThread):
         response = client.post("/pull-data", follow_redirects=True)
 
     assert response.status_code == 200
@@ -105,11 +124,22 @@ def test_end_to_end_pull_update_render(client, fake_rows):
     assert ".00%" in page or ".50%" in page
 
 
-@pytest.mark.integration
-def test_multiple_pulls_do_not_duplicate_rows(client, fake_rows):
+def test_multiple_pulls_do_not_duplicate_rows(client, fake_rows, monkeypatch):
+    set_test_db_env(monkeypatch)
     clear_db()
 
-    with patch.object(query_data, "_run_scraper_and_load", side_effect=lambda: fake_pull_data(fake_rows)):
+    class ImmediateThread:
+        def __init__(self, target, daemon=True):
+            self.target = target
+
+        def start(self):
+            self.target()
+
+    with patch.object(
+        query_data,
+        "_run_scraper_and_load",
+        side_effect=lambda: fake_pull_data(fake_rows),
+    ), patch.object(query_data.threading, "Thread", ImmediateThread):
         response1 = client.post("/pull-data", follow_redirects=True)
         response2 = client.post("/pull-data", follow_redirects=True)
 

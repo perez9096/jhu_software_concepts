@@ -1,0 +1,25 @@
+============================= test session starts ==============================
+platform linux -- Python 3.12.1, pytest-9.0.3, pluggy-1.6.0
+rootdir: /workspaces/jhu_software_concepts/module_4
+configfile: pytest.ini
+plugins: anyio-4.12.1, cov-7.1.0
+collected 37 items
+
+tests/test_analysis_format.py ..                                         [  5%]
+tests/test_buttons.py ....                                               [ 16%]
+tests/test_db_insert.py ....                                             [ 27%]
+tests/test_flask_page.py ....                                            [ 37%]
+tests/test_helpers.py .....................                              [ 94%]
+tests/test_integration_end_to_end.py ..                                  [100%]
+
+================================ tests coverage ================================
+_______________ coverage: platform linux, python 3.12.1-final-0 ________________
+
+Name                Stmts   Miss  Cover   Missing
+-------------------------------------------------
+src/load_data.py       82      0   100%
+src/query_data.py     183      0   100%
+-------------------------------------------------
+TOTAL                 265      0   100%
+Required test coverage of 100% reached. Total coverage: 100.00%
+============================== 37 passed in 3.61s ==============================
