@@ -107,7 +107,7 @@ sudo service postgresql start
 ---
 
 ## Running the Application
-
+Everything was ran within module_4/
 ### Load Data
 
 ```bash
