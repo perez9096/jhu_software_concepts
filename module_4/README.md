@@ -96,8 +96,6 @@ The application expects PostgreSQL connection information through environment va
 export PGDATABASE=studentCourses
 export PGUSER=postgres
 export PGPASSWORD=postgres
-export PGHOST=localhost
-export PGPORT=5432
 ```
 
 Start PostgreSQL:

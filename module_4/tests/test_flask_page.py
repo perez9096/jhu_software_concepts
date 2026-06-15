@@ -21,7 +21,7 @@ def client():
     with app.test_client() as client:
         yield client
 
-
+# Testing each "/routes" established in flask
 def test_app_has_required_routes():
     routes = [rule.rule for rule in app.url_map.iter_rules()]
 
@@ -31,13 +31,13 @@ def test_app_has_required_routes():
     assert "/update-analysis" in routes
 
 
-
+# Testing GET /analysis (page load) - Status 200 check
 def test_get_analysis_page_loads(client):
     response = client.get("/analysis")
 
     assert response.status_code == 200
 
-
+# Testing GET /analysis (page load) - Pull data & Update Analysis buttons
 def test_analysis_page_contains_buttons(client):
     response = client.get("/analysis")
     page_text = response.data.decode("utf-8")
@@ -45,7 +45,7 @@ def test_analysis_page_contains_buttons(client):
     assert "Pull Data" in page_text
     assert "Update Analysis" in page_text
 
-
+# Testing GET /analysis (page load) - "Analysis" and min 1 "Answer" contained in text
 def test_analysis_page_contains_required_text(client):
     response = client.get("/analysis")
     page_text = response.data.decode("utf-8")

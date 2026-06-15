@@ -55,7 +55,7 @@ def sample_row():
         "llm-generated-university": "Johns Hopkins University",
     }
 
-
+# Database writes - test insert on pull
 def test_insert_on_pull_adds_rows(db_conn):
     with db_conn.cursor() as cur:
         assert get_applicant_count(cur) == 0

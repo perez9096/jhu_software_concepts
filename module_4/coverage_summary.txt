@@ -18,8 +18,8 @@ _______________ coverage: platform linux, python 3.12.1-final-0 ________________
 Name                Stmts   Miss  Cover   Missing
 -------------------------------------------------
 src/load_data.py       82      0   100%
-src/query_data.py     183      0   100%
+src/query_data.py     181      0   100%
 -------------------------------------------------
-TOTAL                 265      0   100%
+TOTAL                 263      0   100%
 Required test coverage of 100% reached. Total coverage: 100.00%
-============================== 37 passed in 3.61s ==============================
+============================== 37 passed in 3.78s ==============================

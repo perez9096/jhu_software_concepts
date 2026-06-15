@@ -19,7 +19,7 @@ def client():
     with app.test_client() as client:
         yield client
 
-
+# Analysis Formatting - include "Answer" labels for rendered analysis
 def test_answer_labels_present(client):
     response = client.get("/analysis")
 
@@ -29,6 +29,7 @@ def test_answer_labels_present(client):
 
     assert "Answer:" in page
 
+# Analysis Formatting - test percentage formatted with two decimals
 def test_percentages_have_two_decimals(client):
     response = client.get("/analysis")
 

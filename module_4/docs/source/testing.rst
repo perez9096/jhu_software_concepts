@@ -6,17 +6,19 @@ Overview
 
 The project uses pytest for automated testing.
 
-Run all tests:
-
+Run the full test suite:
 ::
 
     pytest
 
 Run tests with coverage:
+::
+    pytest --cov=src
 
+Run tests by marker:
 ::
 
-    pytest --cov=src
+    pytest -m "web or buttons or analysis or db or integration or helpers"
 
 Test Categories
 ---------------

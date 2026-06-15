@@ -347,7 +347,7 @@ def get_stats_from_db(cur):
         "top_universities_phd_accepted_2026_llm_count": top_universities_phd_accepted_2026_llm_count,
     }
 
-
+# Pulling data once clicked by button
 def _run_scraper_and_load():
     _update_scrape_status(True, "Pull Data started.")
 
