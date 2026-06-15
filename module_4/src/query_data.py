@@ -352,57 +352,61 @@ def _run_scraper_and_load():
     _update_scrape_status(True, "Pull Data started.")
 
     support_dir = SCRIPT_DIR / "supporting scripts"
-    scraper_path = support_dir / "scraper.py"
+    runner_path = support_dir / "run_scrape_and_standardize.py"
     load_path = SCRIPT_DIR / "load_data.py"
-    output_json = SCRIPT_DIR / "applicant_data.json"
-    checkpoint_json = SCRIPT_DIR / "checkpoint.json"
+
+    llm_output = SCRIPT_DIR / "applicant_data_llm_M4.jsonl"
 
     try:
-        scraper_cmd = [
+        runner_cmd = [
             sys.executable,
-            str(scraper_path),
-            "--resume",
-            "--out",
-            str(output_json),
-            "--checkpoint",
-            str(checkpoint_json),
+            str(runner_path),
+            "--pages",
+            "2",
+            "--llm-out",
+            str(llm_output),
         ]
 
         result = subprocess.run(
-            scraper_cmd,
+            runner_cmd,
             cwd=str(support_dir),
-            capture_output=True,
             text=True,
         )
 
         if result.returncode != 0:
-            message = (
-                "Pull Data failed while scraping. "
+            _update_scrape_status(
+                False,
+                "Pull Data failed while scraping/standardizing. "
                 f"Error: {result.stderr.strip() or result.stdout.strip()}"
             )
-            _update_scrape_status(False, message)
+            return
+
+        if not llm_output.exists(): # pragma: no cover
+            _update_scrape_status(
+                False,
+                f"Pull Data failed: expected LLM output was not created at {llm_output}"
+            )
             return
 
         load_cmd = [
             sys.executable,
             str(load_path),
             "--file",
-            str(output_json),
+            str(llm_output),
         ]
 
         result = subprocess.run(
             load_cmd,
             cwd=str(SCRIPT_DIR),
-            capture_output=True,
             text=True,
         )
 
         if result.returncode != 0:
-            message = (
-                "Pull Data finished scraping, but database load failed. "
+            _update_scrape_status(
+                False,
+                "Pull Data finished scraping/standardizing, but database load failed. "
                 f"Error: {result.stderr.strip() or result.stdout.strip()}"
             )
-            _update_scrape_status(False, message)
             return
 
         _update_scrape_status(
@@ -413,9 +417,9 @@ def _run_scraper_and_load():
     except Exception as exc:
         _update_scrape_status(False, f"Pull Data failed: {exc}")
 
-
 @app.route('/pull-data', methods=['POST'])
 def pull_data():
+    print("DEBUG: /pull-data route was hit", flush=True)
     if is_scrape_running():
         return "A Pull Data request is already running.", 409
 

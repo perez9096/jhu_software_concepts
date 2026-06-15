@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 """Run the Grad Cafe scraper and then standardize the results with the local LLM.
 
-This script produces two files:
-- module_2/applicant_data.json
-- module_2/applicant_data_llm.json
+This script is self-contained for module_4.
 
-It resumes scraping from the current checkpoint if available.
+It produces:
+- module_4/src/applicant_data.json
+- module_4/src/applicant_data_llm_M4.jsonl
+
+It resumes scraping from module_4/src/checkpoint.json if available.
 """
 
 import argparse
@@ -13,62 +15,80 @@ import subprocess
 import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[2]
-SCRAPER = ROOT / "module_2" / "scraper.py"
-LLM_APP = Path(__file__).resolve().parent / "app.py"
-DEFAULT_RAW_OUT = ROOT / "module_2" / "applicant_data.json"
-DEFAULT_LLM_OUT = ROOT / "module_2" / "applicant_data_llm.json"
-DEFAULT_CHECKPOINT = ROOT / "module_2" / "checkpoint.json"
+
+SCRIPT_DIR = Path(__file__).resolve().parent
+SRC_DIR = SCRIPT_DIR.parent
+
+SCRAPER = SCRIPT_DIR / "scraper.py"
+LLM_APP = SCRIPT_DIR / "llm_hosting" / "app.py"
+
+DEFAULT_RAW_OUT = SRC_DIR / "applicant_data.json"
+DEFAULT_LLM_OUT = SRC_DIR / "applicant_data_llm_M4.jsonl"
+DEFAULT_CHECKPOINT = SRC_DIR / "checkpoint.json"
 
 
 def run_command(command, cwd):
-    print("Running:", " ".join(map(str, command)))
+#    print("Running:", " ".join(map(str, command)), flush=True)
+
     result = subprocess.run(
         command,
         cwd=str(cwd),
         capture_output=True,
         text=True,
     )
+
+    if result.stdout:
+        print(result.stdout, flush=True)
+
+    if result.stderr:
+        print(result.stderr, flush=True)
+
     if result.returncode != 0:
-        print("Command failed:", " ".join(map(str, command)))
-        print("STDOUT:\n", result.stdout)
-        print("STDERR:\n", result.stderr)
-        raise SystemExit(result.returncode)
-    print(result.stdout)
+        raise RuntimeError(
+            f"Command failed with exit code {result.returncode}: "
+            + " ".join(map(str, command))
+        )
+
     return result
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Run scraper.py and then app.py to produce raw and LLM-standardized applicant JSON.",
+        description="Run scraper.py and then app.py to produce raw and LLM-standardized applicant data."
     )
+
     parser.add_argument(
         "--raw-out",
-        default=DEFAULT_RAW_OUT,
-        help="Raw scraper output path (default: module_2/applicant_data.json)",
+        default=str(DEFAULT_RAW_OUT),
+        help="Raw scraper output path.",
     )
+
     parser.add_argument(
         "--llm-out",
-        default=DEFAULT_LLM_OUT,
-        help="LLM-standardized output path (default: module_2/applicant_data_llm.json)",
+        default=str(DEFAULT_LLM_OUT),
+        help="LLM-standardized output path.",
     )
+
     parser.add_argument(
         "--checkpoint",
-        default=DEFAULT_CHECKPOINT,
+        default=str(DEFAULT_CHECKPOINT),
         help="Checkpoint file path for scraper resume.",
     )
+
     parser.add_argument(
         "--pages",
         type=int,
-        default=5000,
+        default=5,
         help="Maximum survey pages to scrape.",
     )
+
     parser.add_argument(
         "--save-every",
         type=int,
         default=5,
         help="Save scraper progress every N pages.",
     )
+
     args = parser.parse_args()
 
     raw_out = Path(args.raw_out).resolve()
@@ -79,7 +99,8 @@ def main() -> None:
     llm_out.parent.mkdir(parents=True, exist_ok=True)
     checkpoint.parent.mkdir(parents=True, exist_ok=True)
 
-    print("=== Scraping new Grad Cafe data ===")
+    print("=== Scraping new Grad Cafe data ===", flush=True)
+
     scraper_cmd = [
         sys.executable,
         str(SCRAPER),
@@ -93,9 +114,11 @@ def main() -> None:
         "--save-every",
         str(args.save_every),
     ]
-    run_command(scraper_cmd, cwd=ROOT / "module_2")
 
-    print("=== Standardizing with the local LLM ===")
+    run_command(scraper_cmd, cwd=SCRIPT_DIR)
+
+    print("=== Standardizing with the local LLM ===", flush=True)
+
     llm_cmd = [
         sys.executable,
         str(LLM_APP),
@@ -104,11 +127,12 @@ def main() -> None:
         "--out",
         str(llm_out),
     ]
+
     run_command(llm_cmd, cwd=LLM_APP.parent)
 
-    print("=== Complete ===")
-    print(f"Raw scraper data: {raw_out}")
-    print(f"LLM-standardized data: {llm_out}")
+    print("=== Complete ===", flush=True)
+    print(f"Raw scraper data: {raw_out}", flush=True)
+    print(f"LLM-standardized data: {llm_out}", flush=True)
 
 
 if __name__ == "__main__":

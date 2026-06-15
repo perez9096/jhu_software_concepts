@@ -59,3 +59,38 @@ htmlcov/
 build/
 dist/
 *.egg-info/
+module_4/docs/build/
+
+# Sphinx
+docs/build/
+docs/source/_autosummary/
+
+# Generated scraper data
+applicant_data.json
+applicant_data_llm_M4.jsonl
+checkpoint.json
+
+# Python cache
+__pycache__/
+*.py[cod]
+
+# Virtual environments
+venv/
+.venv/
+
+# Coverage
+.coverage
+htmlcov/
+
+# Pytest
+.pytest_cache/
+
+# VS Code
+.vscode/
+
+# Environment variables
+.env
+.env.*
+
+# Logs
+*.log  

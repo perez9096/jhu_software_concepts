@@ -193,7 +193,10 @@ def main(): # pragma: no cover
             infile = os.path.join(os.getcwd(), infile)
 
     with open(infile, "r", encoding="utf-8") as f:
-        rows = [json.loads(line) for line in f]
+        if infile.endswith(".jsonl"):
+            rows = [json.loads(line) for line in f if line.strip()]
+        else:
+            rows = json.load(f)
 
     if args.limit:
         rows = rows[: args.limit]
