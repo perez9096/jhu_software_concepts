@@ -89,3 +89,5 @@ htmlcov/
 
 # Logs
 *.log  
+
+/workspaces/jhu_software_concepts/Testing/
