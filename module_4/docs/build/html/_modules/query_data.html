@@ -1,0 +1,620 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>query_data &mdash; Grad Cafe Module 4 1.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=f2a433a1"></script>
+      <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            Grad Cafe Module 4
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../overview.html">Overview &amp; Setup</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../architecture.html">Architecture</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api.html">API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../testing.html">Testing Guide</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">Grad Cafe Module 4</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="index.html">Module code</a></li>
+      <li class="breadcrumb-item active">query_data</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for query_data</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">re</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">subprocess</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">sys</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">threading</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">datetime</span><span class="w"> </span><span class="kn">import</span> <span class="n">datetime</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">psycopg</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">flask</span><span class="w"> </span><span class="kn">import</span> <span class="n">Flask</span><span class="p">,</span> <span class="n">render_template</span><span class="p">,</span> <span class="n">request</span><span class="p">,</span> <span class="n">redirect</span><span class="p">,</span> <span class="n">url_for</span>
+
+<span class="c1"># Setting Flask</span>
+<span class="n">SCRIPT_DIR</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="vm">__file__</span><span class="p">)</span><span class="o">.</span><span class="n">resolve</span><span class="p">()</span><span class="o">.</span><span class="n">parent</span>
+
+<span class="n">app</span> <span class="o">=</span> <span class="n">Flask</span><span class="p">(</span>
+    <span class="vm">__name__</span><span class="p">,</span>
+    <span class="n">template_folder</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">SCRIPT_DIR</span> <span class="o">/</span> <span class="s2">&quot;templates&quot;</span><span class="p">)</span>
+<span class="p">)</span>
+<span class="n">scrape_status</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">&quot;running&quot;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="s2">&quot;message&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="s2">&quot;started_at&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="s2">&quot;finished_at&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">}</span>
+<span class="n">status_lock</span> <span class="o">=</span> <span class="n">threading</span><span class="o">.</span><span class="n">Lock</span><span class="p">()</span>
+
+<span class="c1"># connecting to Postgres using environment variables for configuration, with defaults for local development.</span>
+
+<div class="viewcode-block" id="get_db_connection">
+<a class="viewcode-back" href="../api.html#query_data.get_db_connection">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">get_db_connection</span><span class="p">():</span>
+    <span class="n">dbname</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="s2">&quot;PGDATABASE&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="s2">&quot;DB_NAME&quot;</span><span class="p">)</span>
+    <span class="n">user</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="s2">&quot;PGUSER&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="s2">&quot;DB_USER&quot;</span><span class="p">)</span>
+    <span class="n">password</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="s2">&quot;PGPASSWORD&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="s2">&quot;DB_PASSWORD&quot;</span><span class="p">)</span>
+    <span class="n">host</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="s2">&quot;PGHOST&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="s2">&quot;DB_HOST&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="s2">&quot;localhost&quot;</span>
+    <span class="n">port</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="s2">&quot;PGPORT&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="s2">&quot;DB_PORT&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="s2">&quot;5432&quot;</span>
+
+    <span class="n">required</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s2">&quot;PGDATABASE or DB_NAME&quot;</span><span class="p">:</span> <span class="n">dbname</span><span class="p">,</span>
+        <span class="s2">&quot;PGUSER or DB_USER&quot;</span><span class="p">:</span> <span class="n">user</span><span class="p">,</span>
+        <span class="s2">&quot;PGPASSWORD or DB_PASSWORD&quot;</span><span class="p">:</span> <span class="n">password</span><span class="p">,</span>
+    <span class="p">}</span>
+
+    <span class="n">missing</span> <span class="o">=</span> <span class="p">[</span><span class="n">key</span> <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">required</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">value</span><span class="p">]</span>
+
+    <span class="k">if</span> <span class="n">missing</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;Missing database configuration: </span><span class="si">{</span><span class="s1">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">missing</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">psycopg</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span>
+        <span class="n">dbname</span><span class="o">=</span><span class="n">dbname</span><span class="p">,</span>
+        <span class="n">user</span><span class="o">=</span><span class="n">user</span><span class="p">,</span>
+        <span class="n">password</span><span class="o">=</span><span class="n">password</span><span class="p">,</span>
+        <span class="n">host</span><span class="o">=</span><span class="n">host</span><span class="p">,</span>
+        <span class="n">port</span><span class="o">=</span><span class="n">port</span><span class="p">,</span>
+    <span class="p">)</span></div>
+
+
+<span class="c1"># Status check!</span>
+<div class="viewcode-block" id="is_scrape_running">
+<a class="viewcode-back" href="../api.html#query_data.is_scrape_running">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">is_scrape_running</span><span class="p">():</span>
+    <span class="k">with</span> <span class="n">status_lock</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">scrape_status</span><span class="p">[</span><span class="s2">&quot;running&quot;</span><span class="p">]</span></div>
+
+
+<span class="c1"># For buttons and status messages on the frontend.</span>
+<div class="viewcode-block" id="get_scrape_status_message">
+<a class="viewcode-back" href="../api.html#query_data.get_scrape_status_message">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">get_scrape_status_message</span><span class="p">():</span>
+    <span class="k">with</span> <span class="n">status_lock</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">scrape_status</span><span class="p">[</span><span class="s2">&quot;running&quot;</span><span class="p">]:</span>
+            <span class="n">elapsed</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span> <span class="o">-</span> <span class="n">scrape_status</span><span class="p">[</span><span class="s2">&quot;started_at&quot;</span><span class="p">]</span>
+
+            <span class="n">minutes</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">elapsed</span><span class="o">.</span><span class="n">total_seconds</span><span class="p">()</span> <span class="o">//</span> <span class="mi">60</span><span class="p">)</span>
+            <span class="n">seconds</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">elapsed</span><span class="o">.</span><span class="n">total_seconds</span><span class="p">()</span> <span class="o">%</span> <span class="mi">60</span><span class="p">)</span>
+
+            <span class="k">return</span> <span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Pull Data is running (</span><span class="si">{</span><span class="n">minutes</span><span class="si">}</span><span class="s2">m </span><span class="si">{</span><span class="n">seconds</span><span class="si">}</span><span class="s2">s elapsed). &quot;</span>
+                <span class="s2">&quot;Analysis will refresh once the current data update completes.&quot;</span>
+            <span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">scrape_status</span><span class="p">[</span><span class="s2">&quot;finished_at&quot;</span><span class="p">]:</span>
+            <span class="k">return</span> <span class="n">scrape_status</span><span class="p">[</span><span class="s2">&quot;message&quot;</span><span class="p">]</span>
+
+        <span class="k">return</span> <span class="n">scrape_status</span><span class="p">[</span><span class="s2">&quot;message&quot;</span><span class="p">]</span></div>
+
+
+<span class="c1"># For button state and status updates when starting/stopping the scraper and loading process.</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">_update_scrape_status</span><span class="p">(</span><span class="n">running</span><span class="p">,</span> <span class="n">message</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="k">with</span> <span class="n">status_lock</span><span class="p">:</span>
+        <span class="n">scrape_status</span><span class="p">[</span><span class="s2">&quot;running&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">running</span>
+        <span class="n">scrape_status</span><span class="p">[</span><span class="s2">&quot;message&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">message</span>
+        <span class="n">now</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">running</span><span class="p">:</span>
+            <span class="n">scrape_status</span><span class="p">[</span><span class="s2">&quot;started_at&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">now</span>
+            <span class="n">scrape_status</span><span class="p">[</span><span class="s2">&quot;finished_at&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">scrape_status</span><span class="p">[</span><span class="s2">&quot;finished_at&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">now</span>
+
+<span class="c1"># parsing numeric fields like GPA and GRE scores, handling various formats and cleaning the data for analysis.</span>
+<div class="viewcode-block" id="parse_number">
+<a class="viewcode-back" href="../api.html#query_data.parse_number">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">parse_number</span><span class="p">(</span><span class="n">value</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">value</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">None</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">)):</span>
+        <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+    <span class="n">text</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">value</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">text</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;none&quot;</span><span class="p">,</span> <span class="s2">&quot;n/a&quot;</span><span class="p">,</span> <span class="s2">&quot;na&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">):</span>
+        <span class="k">return</span> <span class="kc">None</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="n">text</span><span class="p">)</span>
+    <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+        <span class="n">match</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;[0-9]+(?:\.[0-9]+)?&quot;</span><span class="p">,</span> <span class="n">text</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">match</span><span class="p">:</span>
+            <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="n">match</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">0</span><span class="p">))</span>
+    <span class="k">return</span> <span class="kc">None</span></div>
+
+
+<span class="c1"># for output</span>
+<div class="viewcode-block" id="normalize_text">
+<a class="viewcode-back" href="../api.html#query_data.normalize_text">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">normalize_text</span><span class="p">(</span><span class="n">value</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">value</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">return</span> <span class="s2">&quot;&quot;</span>
+    <span class="k">return</span> <span class="nb">str</span><span class="p">(</span><span class="n">value</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span></div>
+
+
+<span class="c1"># Loading data from JSONL, mapping to standardized fields, and inserting into Postgres with upsert logic. Also includes example queries to demonstrate loaded data.</span>
+<div class="viewcode-block" id="load_applicants_from_jsonl">
+<a class="viewcode-back" href="../api.html#query_data.load_applicants_from_jsonl">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">load_applicants_from_jsonl</span><span class="p">(</span><span class="n">filename</span><span class="o">=</span><span class="s2">&quot;applicant_data_llm_M3.jsonl&quot;</span><span class="p">):</span>
+    <span class="n">path</span> <span class="o">=</span> <span class="n">SCRIPT_DIR</span> <span class="o">/</span> <span class="n">filename</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+        <span class="n">path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">getcwd</span><span class="p">())</span> <span class="o">/</span> <span class="n">filename</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+        <span class="k">return</span> <span class="p">[]</span>
+
+    <span class="n">raw_rows</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="s2">&quot;r&quot;</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s2">&quot;utf-8&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">f</span><span class="p">:</span>
+            <span class="n">line</span> <span class="o">=</span> <span class="n">line</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">line</span><span class="p">:</span>
+                <span class="n">raw_rows</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">line</span><span class="p">))</span>
+
+    <span class="n">applicants</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">raw_rows</span><span class="p">:</span>
+        <span class="n">applicants</span><span class="o">.</span><span class="n">append</span><span class="p">({</span>
+            <span class="s2">&quot;program&quot;</span><span class="p">:</span> <span class="n">normalize_text</span><span class="p">(</span><span class="n">row</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;Program Name&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="n">row</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;program&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="n">row</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;program_name&quot;</span><span class="p">)),</span>
+            <span class="s2">&quot;term&quot;</span><span class="p">:</span> <span class="n">normalize_text</span><span class="p">(</span><span class="n">row</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;Semester and Year of Program Start&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="n">row</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;semester_year&quot;</span><span class="p">)),</span>
+            <span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="n">normalize_text</span><span class="p">(</span><span class="n">row</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;Applicant Status&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="n">row</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;applicant_status&quot;</span><span class="p">)),</span>
+            <span class="s2">&quot;us_or_international&quot;</span><span class="p">:</span> <span class="n">normalize_text</span><span class="p">(</span><span class="n">row</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;International or American Student&quot;</span><span class="p">)),</span>
+            <span class="s2">&quot;gpa&quot;</span><span class="p">:</span> <span class="n">parse_number</span><span class="p">(</span><span class="n">row</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;GPA&quot;</span><span class="p">)),</span>
+            <span class="s2">&quot;gre&quot;</span><span class="p">:</span> <span class="n">parse_number</span><span class="p">(</span><span class="n">row</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;GRE Score&quot;</span><span class="p">)),</span>
+            <span class="s2">&quot;gre_v&quot;</span><span class="p">:</span> <span class="n">parse_number</span><span class="p">(</span><span class="n">row</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;GRE V Score&quot;</span><span class="p">)),</span>
+            <span class="s2">&quot;gre_aw&quot;</span><span class="p">:</span> <span class="n">parse_number</span><span class="p">(</span><span class="n">row</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;GRE AW&quot;</span><span class="p">)),</span>
+            <span class="s2">&quot;university&quot;</span><span class="p">:</span> <span class="n">normalize_text</span><span class="p">(</span><span class="n">row</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;University&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="n">row</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;university&quot;</span><span class="p">)),</span>
+            <span class="s2">&quot;degree&quot;</span><span class="p">:</span> <span class="n">normalize_text</span><span class="p">(</span><span class="n">row</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;Masters or PhD&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="n">row</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;degree&quot;</span><span class="p">)),</span>
+            <span class="s2">&quot;llm_generated_program&quot;</span><span class="p">:</span> <span class="n">normalize_text</span><span class="p">(</span><span class="n">row</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;llm-generated-program&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="n">row</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;llm_generated_program&quot;</span><span class="p">)),</span>
+            <span class="s2">&quot;llm_generated_university&quot;</span><span class="p">:</span> <span class="n">normalize_text</span><span class="p">(</span><span class="n">row</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;llm-generated-university&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="n">row</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;llm_generated_university&quot;</span><span class="p">)),</span>
+        <span class="p">})</span>
+
+    <span class="k">return</span> <span class="n">applicants</span></div>
+
+
+
+<div class="viewcode-block" id="compute_stats_from_jsonl">
+<a class="viewcode-back" href="../api.html#query_data.compute_stats_from_jsonl">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">compute_stats_from_jsonl</span><span class="p">(</span><span class="n">applicants</span><span class="p">):</span>
+    <span class="c1"># 1. How many entries do you have in your database who have applied for Fall 2026</span>
+    <span class="n">Fall2026entries_count</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span>
+        <span class="mi">1</span>
+        <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">applicants</span>
+        <span class="k">if</span> <span class="n">row</span><span class="p">[</span><span class="s2">&quot;term&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;Fall 2026&quot;</span>
+    <span class="p">)</span>
+    <span class="c1"># 2. What Percentage of entries are from international students?</span>
+    <span class="n">international_count</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span>
+        <span class="mi">1</span> <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">applicants</span> <span class="k">if</span> <span class="n">row</span><span class="p">[</span><span class="s2">&quot;us_or_international&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;International&quot;</span>
+    <span class="p">)</span>
+    <span class="n">total_count</span> <span class="o">=</span> <span class="n">Fall2026entries_count</span>
+    <span class="n">international_pct</span> <span class="o">=</span> <span class="p">(</span><span class="n">international_count</span> <span class="o">/</span> <span class="n">total_count</span> <span class="o">*</span> <span class="mi">100</span><span class="p">)</span> <span class="k">if</span> <span class="n">international_count</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="kc">None</span>
+    <span class="c1"># 3. What is the average GPA, GRE, GRE V, GRE AW of applicants who provide these metrics</span>
+    <span class="n">rows_with_any_metric</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="n">row</span>
+        <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">applicants</span>
+        <span class="k">if</span> <span class="n">row</span><span class="p">[</span><span class="s2">&quot;gpa&quot;</span><span class="p">]</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">row</span><span class="p">[</span><span class="s2">&quot;gre&quot;</span><span class="p">]</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">row</span><span class="p">[</span><span class="s2">&quot;gre_v&quot;</span><span class="p">]</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">row</span><span class="p">[</span><span class="s2">&quot;gre_aw&quot;</span><span class="p">]</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+    <span class="p">]</span>
+    <span class="n">avg_gpa</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="nb">sum</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="s2">&quot;gpa&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">rows_with_any_metric</span> <span class="k">if</span> <span class="n">row</span><span class="p">[</span><span class="s2">&quot;gpa&quot;</span><span class="p">]</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">)</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="n">rows_with_any_metric</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">rows_with_any_metric</span>
+        <span class="k">else</span> <span class="kc">None</span>
+    <span class="p">)</span>
+    <span class="n">avg_gre</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="nb">sum</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="s2">&quot;gre&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">rows_with_any_metric</span> <span class="k">if</span> <span class="n">row</span><span class="p">[</span><span class="s2">&quot;gre&quot;</span><span class="p">]</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">)</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="n">rows_with_any_metric</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">rows_with_any_metric</span>
+        <span class="k">else</span> <span class="kc">None</span>
+    <span class="p">)</span>
+    <span class="n">avg_gre_v</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="nb">sum</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="s2">&quot;gre_v&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">rows_with_any_metric</span> <span class="k">if</span> <span class="n">row</span><span class="p">[</span><span class="s2">&quot;gre_v&quot;</span><span class="p">]</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">)</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="n">rows_with_any_metric</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">rows_with_any_metric</span>
+        <span class="k">else</span> <span class="kc">None</span>
+    <span class="p">)</span>
+    <span class="n">avg_gre_aw</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="nb">sum</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="s2">&quot;gre_aw&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">rows_with_any_metric</span> <span class="k">if</span> <span class="n">row</span><span class="p">[</span><span class="s2">&quot;gre_aw&quot;</span><span class="p">]</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">)</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="n">rows_with_any_metric</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">rows_with_any_metric</span>
+        <span class="k">else</span> <span class="kc">None</span>
+    <span class="p">)</span>
+    <span class="c1"># 4. What is the average GPA of American students in the Fall 2026 term.</span>
+    <span class="n">american_fall2026</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="n">row</span><span class="p">[</span><span class="s2">&quot;gpa&quot;</span><span class="p">]</span>
+        <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">applicants</span>
+        <span class="k">if</span> <span class="n">row</span><span class="p">[</span><span class="s2">&quot;us_or_international&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;American&quot;</span> <span class="ow">and</span> <span class="n">row</span><span class="p">[</span><span class="s2">&quot;term&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;Fall 2026&quot;</span> <span class="ow">and</span> <span class="n">row</span><span class="p">[</span><span class="s2">&quot;gpa&quot;</span><span class="p">]</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+    <span class="p">]</span>
+    <span class="n">avg_gpa_american_fall2026</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="nb">sum</span><span class="p">(</span><span class="n">american_fall2026</span><span class="p">)</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="n">american_fall2026</span><span class="p">)</span> <span class="k">if</span> <span class="n">american_fall2026</span> <span class="k">else</span> <span class="kc">None</span>
+    <span class="p">)</span>
+    <span class="c1"># 5. What percent of entries for Fall 2026 are Acceptances</span>
+    <span class="n">acceptance_count</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span>
+        <span class="mi">1</span>
+        <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">applicants</span>
+        <span class="k">if</span> <span class="n">row</span><span class="p">[</span><span class="s2">&quot;term&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;Fall 2026&quot;</span> <span class="ow">and</span> <span class="n">row</span><span class="p">[</span><span class="s2">&quot;status&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;Accepted&quot;</span>
+    <span class="p">)</span>
+    <span class="n">total_fall2026</span> <span class="o">=</span> <span class="n">Fall2026entries_count</span>
+    <span class="n">acceptance_percentage</span> <span class="o">=</span> <span class="p">(</span><span class="n">acceptance_count</span> <span class="o">/</span> <span class="n">total_fall2026</span> <span class="o">*</span> <span class="mi">100</span><span class="p">)</span> <span class="k">if</span> <span class="n">acceptance_count</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="kc">None</span>
+    <span class="c1"># 6. What is the average GPA of applicants who applied for Fall 2026 who are Acceptances</span>
+    <span class="n">accepted_fall2026_gpas</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="n">row</span><span class="p">[</span><span class="s2">&quot;gpa&quot;</span><span class="p">]</span>
+        <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">applicants</span>
+        <span class="k">if</span> <span class="n">row</span><span class="p">[</span><span class="s2">&quot;term&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;Fall 2026&quot;</span> <span class="ow">and</span> <span class="n">row</span><span class="p">[</span><span class="s2">&quot;status&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;Accepted&quot;</span> <span class="ow">and</span> <span class="n">row</span><span class="p">[</span><span class="s2">&quot;gpa&quot;</span><span class="p">]</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+    <span class="p">]</span>
+    <span class="n">avg_gpa_accepted_fall2026</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="nb">sum</span><span class="p">(</span><span class="n">accepted_fall2026_gpas</span><span class="p">)</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="n">accepted_fall2026_gpas</span><span class="p">)</span> <span class="k">if</span> <span class="n">accepted_fall2026_gpas</span> <span class="k">else</span> <span class="kc">None</span>
+    <span class="p">)</span>
+    <span class="c1"># 7. How many entries are from applicants who applied to JHU for a masters degree in Computer Science</span>
+    <span class="n">jhu_masters_count</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span>
+        <span class="mi">1</span>
+        <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">applicants</span>
+        <span class="k">if</span> <span class="s2">&quot;%johns hopkins university%&quot;</span> <span class="ow">in</span> <span class="sa">f</span><span class="s2">&quot;%</span><span class="si">{</span><span class="n">row</span><span class="p">[</span><span class="s1">&#39;university&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span><span class="si">}</span><span class="s2">%&quot;</span> <span class="ow">and</span> <span class="s2">&quot;%masters%&quot;</span> <span class="ow">in</span> <span class="sa">f</span><span class="s2">&quot;%</span><span class="si">{</span><span class="n">row</span><span class="p">[</span><span class="s1">&#39;degree&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span><span class="si">}</span><span class="s2">%&quot;</span> <span class="ow">and</span> <span class="s2">&quot;</span><span class="si">%c</span><span class="s2">omputer science%&quot;</span> <span class="ow">in</span> <span class="sa">f</span><span class="s2">&quot;%</span><span class="si">{</span><span class="n">row</span><span class="p">[</span><span class="s1">&#39;program&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span><span class="si">}</span><span class="s2">%&quot;</span>
+    <span class="p">)</span>
+
+    <span class="c1"># 8. How many entries from 2026 are acceptances from applicants who applied to Georgetown University, MIT, Standford University, or Carnegie Mellon University for a PhD in Computer Science.</span>
+    <span class="n">top_universities</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="s2">&quot;</span><span class="si">%g</span><span class="s2">eorgetown university%&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;%mit%&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;</span><span class="si">%s</span><span class="s2">tanford university%&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;</span><span class="si">%c</span><span class="s2">arnegie mellon university%&quot;</span><span class="p">,</span>
+    <span class="p">]</span>
+    <span class="n">top_universities_phd_accepted_2026_count</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span>
+        <span class="mi">1</span>
+        <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">applicants</span>
+        <span class="k">if</span> <span class="s2">&quot;</span><span class="si">%2026%</span><span class="s2">&quot;</span> <span class="ow">in</span> <span class="sa">f</span><span class="s2">&quot;%</span><span class="si">{</span><span class="n">row</span><span class="p">[</span><span class="s1">&#39;term&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span><span class="si">}</span><span class="s2">%&quot;</span>
+        <span class="ow">and</span> <span class="s2">&quot;</span><span class="si">%a</span><span class="s2">ccepted%&quot;</span> <span class="ow">in</span> <span class="sa">f</span><span class="s2">&quot;%</span><span class="si">{</span><span class="n">row</span><span class="p">[</span><span class="s1">&#39;status&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span><span class="si">}</span><span class="s2">%&quot;</span>
+        <span class="ow">and</span> <span class="nb">any</span><span class="p">(</span><span class="n">univ</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="s1">&#39;%&#39;</span><span class="p">)</span> <span class="ow">in</span> <span class="n">row</span><span class="p">[</span><span class="s2">&quot;program&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="k">for</span> <span class="n">univ</span> <span class="ow">in</span> <span class="n">top_universities</span><span class="p">)</span>
+        <span class="ow">and</span> <span class="s2">&quot;%phd%&quot;</span> <span class="ow">in</span> <span class="n">row</span><span class="p">[</span><span class="s2">&quot;degree&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+        <span class="ow">and</span> <span class="s2">&quot;</span><span class="si">%c</span><span class="s2">omputer science%&quot;</span> <span class="ow">in</span> <span class="sa">f</span><span class="s2">&quot;%</span><span class="si">{</span><span class="n">row</span><span class="p">[</span><span class="s1">&#39;program&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span><span class="si">}</span><span class="s2">%&quot;</span>
+    <span class="p">)</span>
+    <span class="c1"># 9. Does the numbers for 8. change if using LLM Generated Fields (rather than the original university and degree fields).</span>
+    <span class="n">top_universities_phd_accepted_2026_llm_count</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span>
+        <span class="mi">1</span>
+        <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">applicants</span>
+        <span class="k">if</span> <span class="s2">&quot;</span><span class="si">%2026%</span><span class="s2">&quot;</span> <span class="ow">in</span> <span class="sa">f</span><span class="s2">&quot;%</span><span class="si">{</span><span class="n">row</span><span class="p">[</span><span class="s1">&#39;term&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span><span class="si">}</span><span class="s2">%&quot;</span>
+        <span class="ow">and</span> <span class="s2">&quot;</span><span class="si">%a</span><span class="s2">ccepted%&quot;</span> <span class="ow">in</span> <span class="sa">f</span><span class="s2">&quot;%</span><span class="si">{</span><span class="n">row</span><span class="p">[</span><span class="s1">&#39;status&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span><span class="si">}</span><span class="s2">%&quot;</span>
+        <span class="ow">and</span> <span class="nb">any</span><span class="p">(</span><span class="n">univ</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="s1">&#39;%&#39;</span><span class="p">)</span> <span class="ow">in</span> <span class="n">row</span><span class="p">[</span><span class="s2">&quot;llm_generated_university&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="k">for</span> <span class="n">univ</span> <span class="ow">in</span> <span class="n">top_universities</span><span class="p">)</span> 
+        <span class="ow">and</span> <span class="s2">&quot;%phd%&quot;</span> <span class="ow">in</span> <span class="n">row</span><span class="p">[</span><span class="s2">&quot;llm_generated_program&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+        <span class="ow">and</span> <span class="s2">&quot;</span><span class="si">%c</span><span class="s2">omputer science%&quot;</span> <span class="ow">in</span> <span class="sa">f</span><span class="s2">&quot;%</span><span class="si">{</span><span class="n">row</span><span class="p">[</span><span class="s1">&#39;program&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span><span class="si">}</span><span class="s2">%&quot;</span>
+    <span class="p">)</span>
+
+    <span class="k">return</span> <span class="p">{</span>
+        <span class="s2">&quot;fall2026_entries_count&quot;</span><span class="p">:</span> <span class="n">Fall2026entries_count</span><span class="p">,</span>
+        <span class="s2">&quot;international_pct&quot;</span><span class="p">:</span> <span class="n">international_pct</span><span class="p">,</span>
+        <span class="s2">&quot;avg_gpa&quot;</span><span class="p">:</span> <span class="n">avg_gpa</span><span class="p">,</span>
+        <span class="s2">&quot;avg_gre&quot;</span><span class="p">:</span> <span class="n">avg_gre</span><span class="p">,</span>
+        <span class="s2">&quot;avg_gre_v&quot;</span><span class="p">:</span> <span class="n">avg_gre_v</span><span class="p">,</span>
+        <span class="s2">&quot;avg_gre_aw&quot;</span><span class="p">:</span> <span class="n">avg_gre_aw</span><span class="p">,</span>
+        <span class="s2">&quot;avg_gpa_american_fall2026&quot;</span><span class="p">:</span> <span class="n">avg_gpa_american_fall2026</span><span class="p">,</span>
+        <span class="s2">&quot;acceptance_percentage&quot;</span><span class="p">:</span> <span class="n">acceptance_percentage</span><span class="p">,</span>
+        <span class="s2">&quot;avg_gpa_accepted_fall2026&quot;</span><span class="p">:</span> <span class="n">avg_gpa_accepted_fall2026</span><span class="p">,</span>
+        <span class="s2">&quot;jhu_masters_count&quot;</span><span class="p">:</span> <span class="n">jhu_masters_count</span><span class="p">,</span>
+        <span class="s2">&quot;top_universities_phd_accepted_2026_count&quot;</span><span class="p">:</span> <span class="n">top_universities_phd_accepted_2026_count</span><span class="p">,</span>
+        <span class="s2">&quot;top_universities_phd_accepted_2026_llm_count&quot;</span><span class="p">:</span> <span class="n">top_universities_phd_accepted_2026_llm_count</span><span class="p">,</span>
+    <span class="p">}</span></div>
+
+
+
+<div class="viewcode-block" id="get_stats_from_db">
+<a class="viewcode-back" href="../api.html#query_data.get_stats_from_db">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">get_stats_from_db</span><span class="p">(</span><span class="n">cur</span><span class="p">):</span>
+    <span class="c1"># 1. How many entries do you have in your database who have applied for Fall 2026. </span>
+    <span class="n">cur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span>
+        <span class="s2">&quot;SELECT COUNT(*) FROM applicants WHERE term = </span><span class="si">%s</span><span class="s2">;&quot;</span><span class="p">,</span>
+        <span class="p">(</span><span class="s2">&quot;Fall 2026&quot;</span><span class="p">,),</span>
+    <span class="p">)</span>
+    <span class="n">Fall2026entries_count</span> <span class="o">=</span> <span class="n">cur</span><span class="o">.</span><span class="n">fetchone</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span>
+
+    <span class="c1"># 2. What Percentage of entries are from international students?</span>
+    <span class="n">cur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span>
+        <span class="s2">&quot;SELECT COUNT(*) FROM applicants WHERE us_or_international = </span><span class="si">%s</span><span class="s2">;&quot;</span><span class="p">,</span>
+        <span class="p">(</span><span class="s2">&quot;International&quot;</span><span class="p">,),</span>
+    <span class="p">)</span>
+    <span class="n">international_count</span> <span class="o">=</span> <span class="n">cur</span><span class="o">.</span><span class="n">fetchone</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span>
+
+    <span class="n">total_count</span> <span class="o">=</span> <span class="n">Fall2026entries_count</span>
+    <span class="n">international_pct</span> <span class="o">=</span> <span class="p">(</span><span class="n">international_count</span> <span class="o">/</span> <span class="n">total_count</span> <span class="o">*</span> <span class="mi">100</span><span class="p">)</span> <span class="k">if</span> <span class="n">international_count</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="kc">None</span>
+
+    <span class="c1"># 3. What is the average GPA, GRE, GRE V, GRE AW of applicants who provide these metrics.</span>
+    <span class="n">cur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span>
+        <span class="s2">&quot;SELECT AVG(gpa), AVG(gre), AVG(gre_v), AVG(gre_aw) FROM applicants WHERE gpa IS NOT NULL OR gre IS NOT NULL OR gre_v IS NOT NULL OR gre_aw IS NOT NULL;&quot;</span>
+    <span class="p">)</span>
+    <span class="n">avg_result</span> <span class="o">=</span> <span class="n">cur</span><span class="o">.</span><span class="n">fetchone</span><span class="p">()</span> <span class="ow">or</span> <span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+
+    <span class="c1"># 4. What is the average GPA of American students in the Fall 2026 term.</span>
+    <span class="n">cur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span>
+        <span class="s2">&quot;SELECT AVG(gpa) FROM applicants WHERE us_or_international = </span><span class="si">%s</span><span class="s2"> AND term = </span><span class="si">%s</span><span class="s2"> AND gpa IS NOT NULL;&quot;</span><span class="p">,</span>
+        <span class="p">(</span><span class="s2">&quot;American&quot;</span><span class="p">,</span> <span class="s2">&quot;Fall 2026&quot;</span><span class="p">),</span>
+    <span class="p">)</span>
+    <span class="n">avg_gpa_american_fall2026</span> <span class="o">=</span> <span class="n">cur</span><span class="o">.</span><span class="n">fetchone</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span>
+
+    <span class="c1"># 5. What percent of entries for Fall 2026 are Acceptances</span>
+    <span class="n">cur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span>
+        <span class="s2">&quot;SELECT COUNT(*) FROM applicants WHERE term = </span><span class="si">%s</span><span class="s2"> AND status = </span><span class="si">%s</span><span class="s2">;&quot;</span><span class="p">,</span>
+        <span class="p">(</span><span class="s2">&quot;Fall 2026&quot;</span><span class="p">,</span> <span class="s2">&quot;Accepted&quot;</span><span class="p">),</span>
+    <span class="p">)</span>
+    <span class="n">accepted_fall2026</span> <span class="o">=</span> <span class="n">cur</span><span class="o">.</span><span class="n">fetchone</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">acceptance_percentage</span> <span class="o">=</span> <span class="p">(</span><span class="n">accepted_fall2026</span> <span class="o">/</span> <span class="n">Fall2026entries_count</span> <span class="o">*</span> <span class="mi">100</span><span class="p">)</span> <span class="k">if</span> <span class="n">Fall2026entries_count</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="kc">None</span>
+
+    <span class="c1"># 6. What is the average GPA of applicants who applied for Fall 2026 who are Acceptances.</span>
+    <span class="n">cur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span>
+        <span class="s2">&quot;SELECT AVG(gpa) FROM applicants WHERE term = </span><span class="si">%s</span><span class="s2"> AND status = </span><span class="si">%s</span><span class="s2"> AND gpa IS NOT NULL;&quot;</span><span class="p">,</span>
+        <span class="p">(</span><span class="s2">&quot;Fall 2026&quot;</span><span class="p">,</span> <span class="s2">&quot;Accepted&quot;</span><span class="p">),</span>
+    <span class="p">)</span>
+    <span class="n">avg_gpa_accepted_fall2026</span> <span class="o">=</span> <span class="n">cur</span><span class="o">.</span><span class="n">fetchone</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span>
+
+    <span class="c1"># 7. How many entries are from applicants who applied to JHU for a masters degree in Computer Science.</span>
+    <span class="n">cur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span>
+        <span class="s2">&quot;SELECT COUNT(*) FROM applicants WHERE university ILIKE </span><span class="si">%s</span><span class="s2"> AND degree ILIKE </span><span class="si">%s</span><span class="s2"> AND program ILIKE </span><span class="si">%s</span><span class="s2">;&quot;</span><span class="p">,</span>
+        <span class="p">(</span><span class="s2">&quot;%Johns Hopkins University%&quot;</span><span class="p">,</span> <span class="s2">&quot;%Masters%&quot;</span><span class="p">,</span> <span class="s2">&quot;%Computer Science%&quot;</span><span class="p">),</span>
+    <span class="p">)</span>
+    <span class="n">jhu_masters_count</span> <span class="o">=</span> <span class="n">cur</span><span class="o">.</span><span class="n">fetchone</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span>
+
+    <span class="c1"># 8. How many entries from 2026 are acceptances from applicants who applied to Georgetown University, MIT, Standford University, or Carnegie Mellon University for a PhD in Computer Science.</span>
+    <span class="n">cur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span>
+        <span class="s2">&quot;SELECT COUNT(*) FROM applicants WHERE term ILIKE </span><span class="si">%s</span><span class="s2"> AND status ILIKE </span><span class="si">%s</span><span class="s2"> AND university ILIKE ANY (ARRAY[</span><span class="si">%s</span><span class="s2">, </span><span class="si">%s</span><span class="s2">, </span><span class="si">%s</span><span class="s2">, </span><span class="si">%s</span><span class="s2">]) AND degree ILIKE </span><span class="si">%s</span><span class="s2"> AND program ILIKE </span><span class="si">%s</span><span class="s2">;&quot;</span><span class="p">,</span>
+        <span class="p">(</span><span class="s2">&quot;</span><span class="si">%2026%</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;%Accepted%&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="si">%G</span><span class="s2">eorgetown University%&quot;</span><span class="p">,</span> <span class="s2">&quot;%MIT%&quot;</span><span class="p">,</span> <span class="s2">&quot;%Stanford University%&quot;</span><span class="p">,</span> <span class="s2">&quot;%Carnegie Mellon University%&quot;</span><span class="p">,</span> <span class="s2">&quot;%PhD%&quot;</span><span class="p">,</span> <span class="s2">&quot;%Computer Science%&quot;</span><span class="p">),</span>
+    <span class="p">)</span>
+    <span class="n">top_universities_phd_accepted_2026_count</span> <span class="o">=</span> <span class="n">cur</span><span class="o">.</span><span class="n">fetchone</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span>
+
+    <span class="c1"># 9. Does the numbers for 8. change if using LLM Generated Fields (rather than the original university and degree fields).</span>
+    <span class="n">cur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span>
+        <span class="s2">&quot;SELECT COUNT(*) FROM applicants WHERE term ILIKE </span><span class="si">%s</span><span class="s2"> AND status ILIKE </span><span class="si">%s</span><span class="s2"> AND llm_generated_university ILIKE ANY (ARRAY[</span><span class="si">%s</span><span class="s2">, </span><span class="si">%s</span><span class="s2">, </span><span class="si">%s</span><span class="s2">, </span><span class="si">%s</span><span class="s2">]) AND degree ILIKE </span><span class="si">%s</span><span class="s2"> AND llm_generated_program ILIKE </span><span class="si">%s</span><span class="s2">;&quot;</span><span class="p">,</span>
+        <span class="p">(</span><span class="s2">&quot;</span><span class="si">%2026%</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;%Accepted%&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="si">%G</span><span class="s2">eorgetown University%&quot;</span><span class="p">,</span> <span class="s2">&quot;%MIT%&quot;</span><span class="p">,</span> <span class="s2">&quot;%Stanford University%&quot;</span><span class="p">,</span> <span class="s2">&quot;%Carnegie Mellon University%&quot;</span><span class="p">,</span> <span class="s2">&quot;%PhD%&quot;</span><span class="p">,</span> <span class="s2">&quot;%Computer Science%&quot;</span><span class="p">),</span>
+    <span class="p">)</span>
+    <span class="n">top_universities_phd_accepted_2026_llm_count</span> <span class="o">=</span> <span class="n">cur</span><span class="o">.</span><span class="n">fetchone</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span>
+
+    <span class="k">return</span> <span class="p">{</span>
+        <span class="s2">&quot;fall2026_entries_count&quot;</span><span class="p">:</span> <span class="n">Fall2026entries_count</span><span class="p">,</span>
+        <span class="s2">&quot;international_pct&quot;</span><span class="p">:</span> <span class="n">international_pct</span><span class="p">,</span>
+        <span class="s2">&quot;avg_gpa&quot;</span><span class="p">:</span> <span class="n">avg_result</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+        <span class="s2">&quot;avg_gre&quot;</span><span class="p">:</span> <span class="n">avg_result</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span>
+        <span class="s2">&quot;avg_gre_v&quot;</span><span class="p">:</span> <span class="n">avg_result</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span>
+        <span class="s2">&quot;avg_gre_aw&quot;</span><span class="p">:</span> <span class="n">avg_result</span><span class="p">[</span><span class="mi">3</span><span class="p">],</span>
+        <span class="s2">&quot;avg_gpa_american_fall2026&quot;</span><span class="p">:</span> <span class="n">avg_gpa_american_fall2026</span><span class="p">,</span>
+        <span class="s2">&quot;acceptance_percentage&quot;</span><span class="p">:</span> <span class="n">acceptance_percentage</span><span class="p">,</span>
+        <span class="s2">&quot;avg_gpa_accepted_fall2026&quot;</span><span class="p">:</span> <span class="n">avg_gpa_accepted_fall2026</span><span class="p">,</span>
+        <span class="s2">&quot;jhu_masters_count&quot;</span><span class="p">:</span> <span class="n">jhu_masters_count</span><span class="p">,</span>
+        <span class="s2">&quot;top_universities_phd_accepted_2026_count&quot;</span><span class="p">:</span> <span class="n">top_universities_phd_accepted_2026_count</span><span class="p">,</span>
+        <span class="s2">&quot;top_universities_phd_accepted_2026_llm_count&quot;</span><span class="p">:</span> <span class="n">top_universities_phd_accepted_2026_llm_count</span><span class="p">,</span>
+    <span class="p">}</span></div>
+
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_run_scraper_and_load</span><span class="p">():</span>
+    <span class="n">_update_scrape_status</span><span class="p">(</span><span class="kc">True</span><span class="p">,</span> <span class="s2">&quot;Pull Data started.&quot;</span><span class="p">)</span>
+
+    <span class="n">support_dir</span> <span class="o">=</span> <span class="n">SCRIPT_DIR</span> <span class="o">/</span> <span class="s2">&quot;supporting scripts&quot;</span>
+    <span class="n">runner_path</span> <span class="o">=</span> <span class="n">support_dir</span> <span class="o">/</span> <span class="s2">&quot;run_scrape_and_standardize.py&quot;</span>
+    <span class="n">load_path</span> <span class="o">=</span> <span class="n">SCRIPT_DIR</span> <span class="o">/</span> <span class="s2">&quot;load_data.py&quot;</span>
+
+    <span class="n">llm_output</span> <span class="o">=</span> <span class="n">SCRIPT_DIR</span> <span class="o">/</span> <span class="s2">&quot;applicant_data_llm_M4.jsonl&quot;</span>
+
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">runner_cmd</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="n">sys</span><span class="o">.</span><span class="n">executable</span><span class="p">,</span>
+            <span class="nb">str</span><span class="p">(</span><span class="n">runner_path</span><span class="p">),</span>
+            <span class="s2">&quot;--pages&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;2&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;--llm-out&quot;</span><span class="p">,</span>
+            <span class="nb">str</span><span class="p">(</span><span class="n">llm_output</span><span class="p">),</span>
+        <span class="p">]</span>
+
+        <span class="n">result</span> <span class="o">=</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">run</span><span class="p">(</span>
+            <span class="n">runner_cmd</span><span class="p">,</span>
+            <span class="n">cwd</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">support_dir</span><span class="p">),</span>
+            <span class="n">text</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">result</span><span class="o">.</span><span class="n">returncode</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">_update_scrape_status</span><span class="p">(</span>
+                <span class="kc">False</span><span class="p">,</span>
+                <span class="s2">&quot;Pull Data failed while scraping/standardizing. &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;Error: </span><span class="si">{</span><span class="n">result</span><span class="o">.</span><span class="n">stderr</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="w"> </span><span class="ow">or</span><span class="w"> </span><span class="n">result</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="p">)</span>
+            <span class="k">return</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">llm_output</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span> <span class="c1"># pragma: no cover</span>
+            <span class="n">_update_scrape_status</span><span class="p">(</span>
+                <span class="kc">False</span><span class="p">,</span>
+                <span class="sa">f</span><span class="s2">&quot;Pull Data failed: expected LLM output was not created at </span><span class="si">{</span><span class="n">llm_output</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="p">)</span>
+            <span class="k">return</span>
+
+        <span class="n">load_cmd</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="n">sys</span><span class="o">.</span><span class="n">executable</span><span class="p">,</span>
+            <span class="nb">str</span><span class="p">(</span><span class="n">load_path</span><span class="p">),</span>
+            <span class="s2">&quot;--file&quot;</span><span class="p">,</span>
+            <span class="nb">str</span><span class="p">(</span><span class="n">llm_output</span><span class="p">),</span>
+        <span class="p">]</span>
+
+        <span class="n">result</span> <span class="o">=</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">run</span><span class="p">(</span>
+            <span class="n">load_cmd</span><span class="p">,</span>
+            <span class="n">cwd</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">SCRIPT_DIR</span><span class="p">),</span>
+            <span class="n">text</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">result</span><span class="o">.</span><span class="n">returncode</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">_update_scrape_status</span><span class="p">(</span>
+                <span class="kc">False</span><span class="p">,</span>
+                <span class="s2">&quot;Pull Data finished scraping/standardizing, but database load failed. &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;Error: </span><span class="si">{</span><span class="n">result</span><span class="o">.</span><span class="n">stderr</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="w"> </span><span class="ow">or</span><span class="w"> </span><span class="n">result</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="p">)</span>
+            <span class="k">return</span>
+
+        <span class="n">_update_scrape_status</span><span class="p">(</span>
+            <span class="kc">False</span><span class="p">,</span>
+            <span class="s2">&quot;Pull Data completed successfully. The database is now up to date.&quot;</span>
+        <span class="p">)</span>
+
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
+        <span class="n">_update_scrape_status</span><span class="p">(</span><span class="kc">False</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;Pull Data failed: </span><span class="si">{</span><span class="n">exc</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+<div class="viewcode-block" id="pull_data">
+<a class="viewcode-back" href="../api.html#query_data.pull_data">[docs]</a>
+<span class="nd">@app</span><span class="o">.</span><span class="n">route</span><span class="p">(</span><span class="s1">&#39;/pull-data&#39;</span><span class="p">,</span> <span class="n">methods</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;POST&#39;</span><span class="p">])</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">pull_data</span><span class="p">():</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;DEBUG: /pull-data route was hit&quot;</span><span class="p">,</span> <span class="n">flush</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">is_scrape_running</span><span class="p">():</span>
+        <span class="k">return</span> <span class="s2">&quot;A Pull Data request is already running.&quot;</span><span class="p">,</span> <span class="mi">409</span>
+
+    <span class="n">thread</span> <span class="o">=</span> <span class="n">threading</span><span class="o">.</span><span class="n">Thread</span><span class="p">(</span><span class="n">target</span><span class="o">=</span><span class="n">_run_scraper_and_load</span><span class="p">,</span> <span class="n">daemon</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">thread</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+
+    <span class="k">return</span> <span class="n">redirect</span><span class="p">(</span><span class="n">url_for</span><span class="p">(</span>
+        <span class="s1">&#39;index&#39;</span><span class="p">,</span>
+        <span class="n">message</span><span class="o">=</span><span class="s1">&#39;Pull Data started. The scraper is now running and will update the database when complete.&#39;</span>
+    <span class="p">))</span></div>
+
+
+<div class="viewcode-block" id="update_analysis">
+<a class="viewcode-back" href="../api.html#query_data.update_analysis">[docs]</a>
+<span class="nd">@app</span><span class="o">.</span><span class="n">route</span><span class="p">(</span><span class="s1">&#39;/update-analysis&#39;</span><span class="p">,</span> <span class="n">methods</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;POST&#39;</span><span class="p">])</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">update_analysis</span><span class="p">():</span>
+    <span class="k">if</span> <span class="n">is_scrape_running</span><span class="p">():</span>
+        <span class="k">return</span> <span class="s2">&quot;Cannot update analysis while Pull Data is running.&quot;</span><span class="p">,</span> <span class="mi">409</span>
+
+    <span class="k">return</span> <span class="n">redirect</span><span class="p">(</span><span class="n">url_for</span><span class="p">(</span>
+        <span class="s1">&#39;index&#39;</span><span class="p">,</span>
+        <span class="n">message</span><span class="o">=</span><span class="s1">&#39;Analysis refreshed with the latest database content.&#39;</span>
+    <span class="p">))</span></div>
+
+
+<div class="viewcode-block" id="index">
+<a class="viewcode-back" href="../api.html#query_data.index">[docs]</a>
+<span class="nd">@app</span><span class="o">.</span><span class="n">route</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">)</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">index</span><span class="p">():</span>
+    <span class="n">stats</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="n">db_error</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">source</span> <span class="o">=</span> <span class="s2">&quot;database&quot;</span>
+
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">conn</span> <span class="o">=</span> <span class="n">get_db_connection</span><span class="p">()</span>
+        <span class="k">with</span> <span class="n">conn</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span> <span class="k">as</span> <span class="n">cur</span><span class="p">:</span>
+            <span class="n">stats</span> <span class="o">=</span> <span class="n">get_stats_from_db</span><span class="p">(</span><span class="n">cur</span><span class="p">)</span>
+        <span class="n">conn</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
+        <span class="n">db_error</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">exc</span><span class="p">)</span>
+        <span class="n">source</span> <span class="o">=</span> <span class="s2">&quot;jsonl&quot;</span>
+        <span class="n">rows</span> <span class="o">=</span> <span class="n">load_applicants_from_jsonl</span><span class="p">()</span>
+        <span class="n">stats</span> <span class="o">=</span> <span class="n">compute_stats_from_jsonl</span><span class="p">(</span><span class="n">rows</span><span class="p">)</span>
+
+    <span class="n">status_message</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;message&quot;</span><span class="p">)</span>
+    <span class="n">scrape_message</span> <span class="o">=</span> <span class="n">get_scrape_status_message</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">render_template</span><span class="p">(</span>
+        <span class="s1">&#39;index.html&#39;</span><span class="p">,</span>
+        <span class="n">stats</span><span class="o">=</span><span class="n">stats</span><span class="p">,</span>
+        <span class="n">db_error</span><span class="o">=</span><span class="n">db_error</span><span class="p">,</span>
+        <span class="n">source</span><span class="o">=</span><span class="n">source</span><span class="p">,</span>
+        <span class="n">status_message</span><span class="o">=</span><span class="n">status_message</span><span class="p">,</span>
+        <span class="n">scrape_running</span><span class="o">=</span><span class="n">is_scrape_running</span><span class="p">(),</span>
+        <span class="n">scrape_message</span><span class="o">=</span><span class="n">scrape_message</span><span class="p">,</span>
+    <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="analysis">
+<a class="viewcode-back" href="../api.html#query_data.analysis">[docs]</a>
+<span class="nd">@app</span><span class="o">.</span><span class="n">route</span><span class="p">(</span><span class="s1">&#39;/analysis&#39;</span><span class="p">)</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">analysis</span><span class="p">():</span>
+    <span class="k">return</span> <span class="n">index</span><span class="p">()</span></div>
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s1">&#39;__main__&#39;</span><span class="p">:</span> <span class="c1"># pragma: no cover</span>
+    <span class="n">app</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">host</span><span class="o">=</span><span class="s1">&#39;0.0.0.0&#39;</span><span class="p">,</span> <span class="n">port</span><span class="o">=</span><span class="mi">8000</span><span class="p">)</span>
+
+    
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Raul Perez.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
