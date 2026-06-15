@@ -56,14 +56,9 @@ checkpoint.json
 htmlcov/
 
 # Build artifacts
-build/
+
 dist/
 *.egg-info/
-module_4/docs/build/
-
-# Sphinx
-docs/build/
-docs/source/_autosummary/
 
 # Generated scraper data
 applicant_data.json
